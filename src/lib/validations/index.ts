@@ -258,6 +258,29 @@ export const creditCardInstallmentSchema = z.object({
     .min(1, "Baslangic tarihi bos birakilamaz"),
 });
 
+export const registerSchema = z
+  .object({
+    full_name: z
+      .string()
+      .min(2, "Ad soyad en az 2 karakter olmalidir")
+      .max(100, "Ad soyad en fazla 100 karakter olabilir")
+      .trim(),
+    email: z
+      .string()
+      .min(1, "E-posta alani bos birakilamaz")
+      .email("Gecerli bir e-posta adresi girin"),
+    password: z
+      .string()
+      .min(6, "Sifre en az 6 karakter olmalidir"),
+    confirmPassword: z
+      .string()
+      .min(1, "Sifre onay alani bos birakilamaz"),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Sifreler eslesmedi",
+    path: ["confirmPassword"],
+  });
+
 export const profileSchema = z.object({
   full_name: z
     .string()

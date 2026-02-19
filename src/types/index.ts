@@ -7,6 +7,10 @@ export type Installment = Database["public"]["Tables"]["installments"]["Row"];
 export type CreditCard = Database["public"]["Tables"]["credit_cards"]["Row"];
 export type CreditCardInstallment =
   Database["public"]["Tables"]["credit_card_installments"]["Row"];
+export type Family = Database["public"]["Tables"]["families"]["Row"];
+export type FamilyMember = Database["public"]["Tables"]["family_members"]["Row"];
+export type FamilyInvitation =
+  Database["public"]["Tables"]["family_invitations"]["Row"];
 
 export type InsertBankAccount =
   Database["public"]["Tables"]["bank_accounts"]["Insert"];

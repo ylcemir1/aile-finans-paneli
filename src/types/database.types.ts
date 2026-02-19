@@ -42,6 +42,7 @@ export type Database = {
           account_type: string;
           currency: string;
           account_number: string;
+          family_id: string | null;
         };
         Insert: {
           id?: string;
@@ -54,6 +55,7 @@ export type Database = {
           account_type?: string;
           currency?: string;
           account_number?: string;
+          family_id?: string | null;
         };
         Update: {
           id?: string;
@@ -66,6 +68,7 @@ export type Database = {
           account_type?: string;
           currency?: string;
           account_number?: string;
+          family_id?: string | null;
         };
         Relationships: [
           {
@@ -99,6 +102,7 @@ export type Database = {
           due_day: number | null;
           notes: string;
           updated_at: string;
+          family_id: string | null;
         };
         Insert: {
           id?: string;
@@ -121,6 +125,7 @@ export type Database = {
           due_day?: number | null;
           notes?: string;
           updated_at?: string;
+          family_id?: string | null;
         };
         Update: {
           id?: string;
@@ -143,6 +148,7 @@ export type Database = {
           due_day?: number | null;
           notes?: string;
           updated_at?: string;
+          family_id?: string | null;
         };
         Relationships: [
           {
@@ -215,6 +221,7 @@ export type Database = {
           created_by: string;
           created_at: string;
           updated_at: string;
+          family_id: string | null;
         };
         Insert: {
           id?: string;
@@ -231,6 +238,7 @@ export type Database = {
           created_by: string;
           created_at?: string;
           updated_at?: string;
+          family_id?: string | null;
         };
         Update: {
           id?: string;
@@ -247,6 +255,7 @@ export type Database = {
           created_by?: string;
           created_at?: string;
           updated_at?: string;
+          family_id?: string | null;
         };
         Relationships: [
           {
@@ -259,6 +268,116 @@ export type Database = {
           {
             foreignKeyName: "credit_cards_created_by_fkey";
             columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      families: {
+        Row: {
+          id: string;
+          name: string;
+          created_by: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          created_by: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          created_by?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "families_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      family_members: {
+        Row: {
+          id: string;
+          family_id: string;
+          user_id: string;
+          role: "admin" | "member";
+          joined_at: string;
+        };
+        Insert: {
+          id?: string;
+          family_id: string;
+          user_id: string;
+          role?: "admin" | "member";
+          joined_at?: string;
+        };
+        Update: {
+          id?: string;
+          family_id?: string;
+          user_id?: string;
+          role?: "admin" | "member";
+          joined_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "family_members_family_id_fkey";
+            columns: ["family_id"];
+            isOneToOne: false;
+            referencedRelation: "families";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "family_members_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      family_invitations: {
+        Row: {
+          id: string;
+          family_id: string;
+          invited_by: string;
+          invited_email: string;
+          status: "pending" | "accepted" | "rejected";
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          family_id: string;
+          invited_by: string;
+          invited_email: string;
+          status?: "pending" | "accepted" | "rejected";
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          family_id?: string;
+          invited_by?: string;
+          invited_email?: string;
+          status?: "pending" | "accepted" | "rejected";
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "family_invitations_family_id_fkey";
+            columns: ["family_id"];
+            isOneToOne: false;
+            referencedRelation: "families";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "family_invitations_invited_by_fkey";
+            columns: ["invited_by"];
             isOneToOne: false;
             referencedRelation: "profiles";
             referencedColumns: ["id"];

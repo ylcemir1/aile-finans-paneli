@@ -6,10 +6,10 @@ import { cn } from "@/lib/utils/cn";
 
 const navItems = [
   { href: "/", label: "Ana Sayfa", icon: "house" },
-  { href: "/bank-accounts", label: "Hesaplar", icon: "account_balance_wallet" },
   { href: "/loans", label: "Krediler", icon: "account_balance" },
-  { href: "/credit-cards", label: "Kartlar", icon: "credit_card" },
   { href: "/installments", label: "Taksitler", icon: "payments" },
+  { href: "/family", label: "Ailem", icon: "family_restroom" },
+  { href: "/profile", label: "Profil", icon: "person" },
 ];
 
 interface BottomNavProps {

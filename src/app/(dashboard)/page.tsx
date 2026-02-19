@@ -4,12 +4,55 @@ import { UpcomingInstallments } from "@/components/dashboard/UpcomingInstallment
 import { SavingsGoalCard } from "@/components/dashboard/SavingsGoalCard";
 import { MonthlySpendingChart } from "@/components/dashboard/MonthlySpendingChart";
 import { DebtBreakdownCard } from "@/components/dashboard/DebtBreakdownCard";
+import { ViewScopeToggle } from "@/components/ui/ViewScopeToggle";
 import { formatCurrency } from "@/lib/utils/currency";
 import { formatDate, isWithinDays, daysUntil } from "@/lib/utils/date";
+import { getUserFamilyId } from "@/lib/utils/family-scope";
 import { LOAN_TYPES } from "@/types";
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ scope?: string }>;
+}) {
+  const params = await searchParams;
   const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const userId = user?.id;
+
+  const familyId = userId ? await getUserFamilyId(supabase, userId) : null;
+  const scope = params.scope ?? "personal";
+  const isFamily = scope === "family" && !!familyId;
+
+  // Build queries with scope filtering
+  let accountsQuery = supabase.from("bank_accounts").select("balance, currency");
+  let loansQuery = supabase
+    .from("loans")
+    .select("monthly_payment, remaining_balance, loan_type, status")
+    .eq("status", "active");
+  let installmentsQuery = supabase
+    .from("installments")
+    .select("*, loan:loans(bank_name, loan_type)")
+    .eq("is_paid", false)
+    .gte("due_date", new Date().toISOString().split("T")[0])
+    .order("due_date", { ascending: true });
+  let creditCardsQuery = supabase
+    .from("credit_cards")
+    .select("current_balance")
+    .eq("status", "active");
+
+  if (isFamily) {
+    accountsQuery = accountsQuery.eq("family_id", familyId);
+    loansQuery = loansQuery.eq("family_id", familyId);
+    creditCardsQuery = creditCardsQuery.eq("family_id", familyId);
+  } else if (userId) {
+    accountsQuery = accountsQuery.or(`family_id.is.null,owner_id.eq.${userId}`).eq("owner_id", userId);
+    loansQuery = loansQuery.or(`family_id.is.null,payer_id.eq.${userId}`).eq("payer_id", userId);
+    creditCardsQuery = creditCardsQuery.or(`family_id.is.null,owner_id.eq.${userId}`).eq("owner_id", userId);
+  }
 
   const [
     { data: accounts },
@@ -17,18 +60,10 @@ export default async function DashboardPage() {
     { data: installments },
     { data: creditCards },
   ] = await Promise.all([
-    supabase.from("bank_accounts").select("balance, currency"),
-    supabase
-      .from("loans")
-      .select("monthly_payment, remaining_balance, loan_type, status")
-      .eq("status", "active"),
-    supabase
-      .from("installments")
-      .select("*, loan:loans(bank_name, loan_type)")
-      .eq("is_paid", false)
-      .gte("due_date", new Date().toISOString().split("T")[0])
-      .order("due_date", { ascending: true }),
-    supabase.from("credit_cards").select("current_balance").eq("status", "active"),
+    accountsQuery,
+    loansQuery,
+    installmentsQuery,
+    creditCardsQuery,
   ]);
 
   // Also get recently paid installments for the list
@@ -126,6 +161,14 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      {/* Scope toggle */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-bold text-slate-900">
+          {isFamily ? "Aile Paneli" : "Kisisel Panel"}
+        </h1>
+        <ViewScopeToggle hasFamily={!!familyId} />
+      </div>
+
       {/* Metric cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <MetricCard

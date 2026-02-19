@@ -11,6 +11,7 @@ const navItems = [
   { href: "/loans", label: "Krediler", icon: "account_balance" },
   { href: "/credit-cards", label: "Kartlar", icon: "credit_card" },
   { href: "/installments", label: "Taksitler", icon: "payments" },
+  { href: "/family", label: "Ailem", icon: "family_restroom" },
   { href: "/profile", label: "Profil", icon: "person" },
 ];
 
@@ -47,7 +48,7 @@ export function Sidebar({ profile, overdueCount = 0 }: SidebarProps) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-1">
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {navItems.map(({ href, label, icon }) => {
           const isActive =
             href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -76,6 +77,31 @@ export function Sidebar({ profile, overdueCount = 0 }: SidebarProps) {
             </Link>
           );
         })}
+
+        {/* Admin section */}
+        {profile.role === "admin" && (
+          <>
+            <div className="pt-3 pb-1 px-3">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                Yonetim
+              </p>
+            </div>
+            <Link
+              href="/admin/users"
+              className={cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-colors",
+                pathname.startsWith("/admin/users")
+                  ? "bg-primary/10 text-primary active-nav"
+                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+              )}
+            >
+              <span className="material-symbols-outlined text-xl">
+                admin_panel_settings
+              </span>
+              <span className="flex-1">Kullanicilar</span>
+            </Link>
+          </>
+        )}
       </nav>
 
       {/* User section */}

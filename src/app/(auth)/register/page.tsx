@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { LoginForm } from "@/components/auth/LoginForm";
+import { RegisterForm } from "@/components/auth/RegisterForm";
 
-export default async function LoginPage({
+export default async function RegisterPage({
   searchParams,
 }: {
   searchParams: Promise<{ error?: string; success?: string }>;
@@ -14,14 +14,14 @@ export default async function LoginPage({
       <div className="pt-10 pb-6 px-8 flex flex-col items-center text-center">
         <div className="bg-primary/10 p-3 rounded-xl mb-4">
           <span className="material-symbols-outlined text-primary text-4xl leading-none">
-            shield_lock
+            person_add
           </span>
         </div>
         <h1 className="text-slate-900 text-2xl font-bold tracking-tight">
-          Aile Finans Paneli
+          Hesap Oluştur
         </h1>
         <p className="text-slate-500 mt-2 text-sm">
-          Aile finanslarınızı güvenle yönetin
+          Aile Finans Paneli&apos;ne kayıt olun
         </p>
       </div>
 
@@ -37,28 +37,18 @@ export default async function LoginPage({
             <p className="text-sm text-emerald-700">{params.success}</p>
           </div>
         )}
-        <LoginForm />
+        <RegisterForm />
       </div>
 
       {/* Footer */}
-      <div className="bg-slate-50 py-4 px-8 flex flex-col items-center gap-3 border-t border-slate-100">
-        <div className="flex items-center gap-1.5">
-          <span className="text-sm text-slate-500">Hesabınız yok mu?</span>
-          <Link
-            href="/register"
-            className="text-sm font-bold text-primary hover:text-primary/80 transition-colors"
-          >
-            Kayıt Ol
-          </Link>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-green-500 text-lg">
-            verified_user
-          </span>
-          <span className="text-xs font-medium text-slate-500 uppercase tracking-widest">
-            UÇTAN UCA ŞİFRELİ VE GÜVENLİ
-          </span>
-        </div>
+      <div className="bg-slate-50 py-4 px-8 flex items-center justify-center gap-1.5 border-t border-slate-100">
+        <span className="text-sm text-slate-500">Zaten hesabınız var mı?</span>
+        <Link
+          href="/login"
+          className="text-sm font-bold text-primary hover:text-primary/80 transition-colors"
+        >
+          Giriş Yap
+        </Link>
       </div>
     </div>
   );
