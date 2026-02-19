@@ -49,12 +49,15 @@ interface GenerateInstallmentScheduleParams {
   dueDay?: number | null;
   gracePeriodMonths?: number;
   paidAmount?: number;
+  installmentCount?: number;
+  paidInstallmentCount?: number;
 }
 
 /**
  * Generate installment schedule for a loan.
- * Supports grace period (odemesiz donem) and due_day.
- * If paidAmount is specified, installments up to that amount are marked as paid.
+ * If installmentCount is provided, generates exactly that many installments.
+ * Otherwise falls back to date range calculation (inclusive by month).
+ * paidInstallmentCount marks the first N installments as paid.
  */
 export function generateInstallmentSchedule(
   params: GenerateInstallmentScheduleParams
@@ -67,6 +70,8 @@ export function generateInstallmentSchedule(
     dueDay,
     gracePeriodMonths = 0,
     paidAmount = 0,
+    installmentCount,
+    paidInstallmentCount = 0,
   } = params;
 
   const installments: InsertInstallment[] = [];
@@ -75,20 +80,30 @@ export function generateInstallmentSchedule(
   const startMonthIndex = toMonthIndex(start);
   const endMonthIndex = toMonthIndex(end);
   const safeGracePeriod = Math.max(0, gracePeriodMonths);
+  const useExplicitCount = installmentCount !== undefined && installmentCount > 0;
   let installmentNumber = 1;
   let cumulativePaid = 0;
 
-  // Generate installments month-by-month (inclusive by month)
-  // so due_day day-of-month does not drop the last month.
   for (let monthOffset = safeGracePeriod; monthOffset <= 600; monthOffset++) {
-    const currentMonthIndex = startMonthIndex + monthOffset;
-    if (currentMonthIndex > endMonthIndex) break;
+    if (useExplicitCount && installmentNumber > installmentCount) break;
+
+    if (!useExplicitCount) {
+      const currentMonthIndex = startMonthIndex + monthOffset;
+      if (currentMonthIndex > endMonthIndex) break;
+    }
 
     const dueDateObj = getInstallmentDate(start, monthOffset, dueDay);
 
-    // Determine if this installment should be marked as paid (for partial loans)
-    const isPaid = cumulativePaid + monthlyPayment <= paidAmount;
-    if (isPaid) {
+    const isPaidByCount = useExplicitCount && paidInstallmentCount > 0
+      ? installmentNumber <= paidInstallmentCount
+      : false;
+
+    const isPaidByAmount = !useExplicitCount && paidAmount > 0
+      ? cumulativePaid + monthlyPayment <= paidAmount
+      : false;
+
+    const isPaid = isPaidByCount || isPaidByAmount;
+    if (isPaidByAmount && isPaid) {
       cumulativePaid += monthlyPayment;
     }
 

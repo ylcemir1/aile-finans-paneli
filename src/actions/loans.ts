@@ -29,6 +29,8 @@ export async function createLoan(
     "grace_period_months",
     "statement_day",
     "due_day",
+    "installment_count",
+    "paid_installment_count",
   ]);
   if (!raw.payer_id) raw.payer_id = user.id;
 
@@ -37,7 +39,11 @@ export async function createLoan(
     return { success: false, error: getFirstError(parsed.error) };
   }
 
-  const paidAmount = parsed.data.paid_amount ?? 0;
+  const installmentCount = parsed.data.installment_count;
+  const paidInstallmentCount = parsed.data.paid_installment_count ?? 0;
+  const paidAmount = installmentCount
+    ? paidInstallmentCount * parsed.data.monthly_payment
+    : (parsed.data.paid_amount ?? 0);
   const remainingBalance = parsed.data.total_amount - paidAmount;
 
   const { data: loan, error: loanError } = await supabase
@@ -71,7 +77,6 @@ export async function createLoan(
     };
   }
 
-  // Generate installments with new calculation utility
   const installments = generateInstallmentSchedule({
     loanId: loan.id,
     startDate: parsed.data.start_date,
@@ -79,7 +84,9 @@ export async function createLoan(
     monthlyPayment: parsed.data.monthly_payment,
     dueDay: parsed.data.due_day,
     gracePeriodMonths: parsed.data.grace_period_months,
-    paidAmount: paidAmount,
+    paidAmount: installmentCount ? 0 : paidAmount,
+    installmentCount,
+    paidInstallmentCount,
   });
 
   if (installments.length > 0) {
@@ -136,6 +143,8 @@ export async function updateLoan(
     "grace_period_months",
     "statement_day",
     "due_day",
+    "installment_count",
+    "paid_installment_count",
   ]);
 
   // Handle regenerate_installments checkbox

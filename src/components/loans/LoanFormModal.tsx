@@ -149,16 +149,33 @@ export function LoanFormModal({
                 defaultValue={loan?.interest_type ?? "fixed"}
               />
             </div>
-            {!isEdit && (
+          </div>
+
+          {/* Section: Taksit Bilgileri */}
+          <div className="space-y-3">
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+              Taksit Bilgileri
+            </p>
+            <div className="grid grid-cols-2 gap-3">
               <Input
-                label="Onceden Odenen Tutar"
-                name="paid_amount"
+                label="Toplam Taksit Sayisi"
+                name="installment_count"
                 type="number"
-                step="0.01"
-                placeholder="0.00"
+                min={1}
+                placeholder="12"
+              />
+              <Input
+                label="Odenmis Taksit"
+                name="paid_installment_count"
+                type="number"
+                min={0}
+                placeholder="0"
                 defaultValue={0}
               />
-            )}
+            </div>
+            <p className="text-[10px] text-slate-400">
+              Taksit sayisi girilirse sistem o kadar taksit olusturur. Bos birakilirsa tarih araligina gore hesaplanir.
+            </p>
           </div>
 
           {/* Section: Tarih Bilgileri */}

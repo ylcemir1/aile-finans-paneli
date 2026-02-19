@@ -68,6 +68,18 @@ export const loanSchema = z
       .min(0, "Odenen tutar negatif olamaz")
       .optional()
       .default(0),
+    installment_count: z
+      .number({ error: "Gecerli bir sayi girin" })
+      .int("Tam sayi olmalidir")
+      .min(1, "Taksit sayisi en az 1 olmalidir")
+      .max(600, "Taksit sayisi en fazla 600 olabilir")
+      .optional(),
+    paid_installment_count: z
+      .number({ error: "Gecerli bir sayi girin" })
+      .int("Tam sayi olmalidir")
+      .min(0, "Odenmis taksit sayisi negatif olamaz")
+      .optional()
+      .default(0),
     grace_period_months: z
       .number({ error: "Gecerli bir sayi girin" })
       .int("Tam sayi olmalidir")
@@ -160,6 +172,18 @@ export const loanUpdateSchema = z
       .max(500, "Notlar en fazla 500 karakter olabilir")
       .optional()
       .default(""),
+    installment_count: z
+      .number({ error: "Gecerli bir sayi girin" })
+      .int("Tam sayi olmalidir")
+      .min(1, "Taksit sayisi en az 1 olmalidir")
+      .max(600, "Taksit sayisi en fazla 600 olabilir")
+      .optional(),
+    paid_installment_count: z
+      .number({ error: "Gecerli bir sayi girin" })
+      .int("Tam sayi olmalidir")
+      .min(0, "Odenmis taksit sayisi negatif olamaz")
+      .optional()
+      .default(0),
     regenerate_installments: z
       .boolean()
       .optional()
