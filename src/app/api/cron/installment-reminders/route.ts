@@ -153,17 +153,17 @@ export async function GET(request: Request) {
       installmentNumber: inst.installment_number ?? 0,
     }));
 
-    const success = await sendReminderEmail({
+    const result = await sendReminderEmail({
       to: email,
       userName,
       installments: mapped,
       type,
     });
 
-    if (success) {
+    if (result.success) {
       sentCount++;
     } else {
-      errors.push(`Failed to send email to ${email}`);
+      errors.push(`${email}: ${result.error}`);
     }
   }
 

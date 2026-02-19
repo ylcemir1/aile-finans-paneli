@@ -147,8 +147,8 @@ export async function sendReminderEmail(params: ReminderEmailParams) {
   });
 
   if (error) {
-    console.error("[Email Error]", error);
-    return false;
+    console.error("[Email Error]", JSON.stringify(error));
+    return { success: false, error: error.message || JSON.stringify(error) };
   }
-  return true;
+  return { success: true, error: null };
 }
