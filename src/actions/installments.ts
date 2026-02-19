@@ -110,6 +110,74 @@ export async function markInstallmentPaid(
   return { success: true, data: undefined };
 }
 
+export async function updateInstallment(
+  id: string,
+  loanId: string,
+  data: { due_date?: string; amount?: number }
+): Promise<ActionResult> {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "Oturum bulunamadi" };
+
+  const access = await checkInstallmentAccess(supabase, id, user.id);
+  if (!access.allowed) {
+    return { success: false, error: access.error ?? "Yetki hatasi" };
+  }
+
+  const updateFields: Record<string, unknown> = {};
+  if (data.due_date) updateFields.due_date = data.due_date;
+  if (data.amount !== undefined && data.amount > 0) {
+    const { data: oldInst } = await supabase
+      .from("installments")
+      .select("amount, is_paid")
+      .eq("id", id)
+      .single();
+
+    updateFields.amount = data.amount;
+
+    if (oldInst?.is_paid) {
+      const amountDiff = data.amount - oldInst.amount;
+      const { data: loan } = await supabase
+        .from("loans")
+        .select("total_amount, paid_amount")
+        .eq("id", loanId)
+        .single();
+
+      if (loan) {
+        const newPaidAmount = (loan.paid_amount ?? 0) + amountDiff;
+        await supabase
+          .from("loans")
+          .update({
+            paid_amount: Math.max(0, newPaidAmount),
+            remaining_balance: Math.max(0, loan.total_amount - newPaidAmount),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", loanId);
+      }
+    }
+  }
+
+  if (Object.keys(updateFields).length === 0) {
+    return { success: false, error: "Guncellenecek alan bulunamadi" };
+  }
+
+  const { error } = await supabase
+    .from("installments")
+    .update(updateFields)
+    .eq("id", id);
+
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath("/installments");
+  revalidatePath(`/loans/${loanId}`);
+  revalidatePath("/loans");
+  revalidatePath("/");
+  return { success: true, data: undefined };
+}
+
 export async function markInstallmentUnpaid(
   id: string,
   loanId: string

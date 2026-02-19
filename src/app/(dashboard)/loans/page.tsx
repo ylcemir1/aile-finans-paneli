@@ -19,7 +19,8 @@ export default async function LoansPage() {
     { data: loans },
     { data: profiles },
     { data: currentProfile },
-    { data: upcomingInstallments },
+    { data: unpaidInstallments },
+    { data: allPaidInstallments },
   ] = await Promise.all([
     supabase
       .from("loans")
@@ -36,11 +37,33 @@ export default async function LoansPage() {
     supabase
       .from("installments")
       .select("*, loan:loans(id, bank_name, loan_type)")
+      .eq("is_paid", false)
       .order("due_date", { ascending: true }),
+    supabase
+      .from("installments")
+      .select("*, loan:loans(id, bank_name, loan_type)")
+      .eq("is_paid", true)
+      .order("due_date", { ascending: false }),
   ]);
 
   const isAdmin = currentProfile?.role === "admin";
   const activeLoans = (loans ?? []).filter((l) => l.status !== "closed");
+
+  // Smart display: all unpaid + only the last paid per loan
+  const allUnpaid = unpaidInstallments ?? [];
+  const paidList = allPaidInstallments ?? [];
+  const lastPaidPerLoan = new Map<string, (typeof paidList)[number]>();
+  for (const inst of paidList) {
+    if (!lastPaidPerLoan.has(inst.loan_id)) {
+      lastPaidPerLoan.set(inst.loan_id, inst);
+    }
+  }
+  const displayInstallments = [
+    ...Array.from(lastPaidPerLoan.values()),
+    ...allUnpaid,
+  ].sort(
+    (a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime()
+  );
 
   const totalDebt = activeLoans.reduce(
     (sum, l) => sum + Number(l.remaining_balance ?? l.total_amount),
@@ -137,7 +160,7 @@ export default async function LoansPage() {
           Taksit Takvimi
         </h2>
         <div className="space-y-3">
-          {(upcomingInstallments ?? []).length === 0 ? (
+          {displayInstallments.length === 0 ? (
             <EmptyState
               icon="event_available"
               title="Taksit bulunamadi"
@@ -146,7 +169,7 @@ export default async function LoansPage() {
               iconColor="text-emerald-500"
             />
           ) : (
-            (upcomingInstallments ?? []).map((inst) => (
+            displayInstallments.map((inst) => (
               <InstallmentItem
                 key={inst.id}
                 installment={inst}
