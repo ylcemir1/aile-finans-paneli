@@ -53,8 +53,14 @@ function toDateStr(year: number, month: number, day: number): string {
   return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
+function shortAmount(n: number): string {
+  if (n >= 1000) return `${Math.round(n / 1000)}K`;
+  return String(Math.round(n));
+}
+
 export function InstallmentCalendar({ installments }: InstallmentCalendarProps) {
   const today = new Date();
+  today.setHours(0, 0, 0, 0);
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
@@ -64,9 +70,8 @@ export function InstallmentCalendar({ installments }: InstallmentCalendarProps) 
 
   const installmentMap = new Map<string, CalendarInstallment[]>();
   for (const inst of installments) {
-    const dateKey = inst.due_date;
-    if (!installmentMap.has(dateKey)) installmentMap.set(dateKey, []);
-    installmentMap.get(dateKey)!.push(inst);
+    if (!installmentMap.has(inst.due_date)) installmentMap.set(inst.due_date, []);
+    installmentMap.get(inst.due_date)!.push(inst);
   }
 
   function goToPrevMonth() {
@@ -118,33 +123,31 @@ export function InstallmentCalendar({ installments }: InstallmentCalendarProps) 
 
   return (
     <>
-      <div className="bg-white rounded-xl border border-slate-100 shadow-md shadow-black/[0.03] overflow-hidden">
+      <div className="bg-white rounded-xl border border-slate-100 shadow-md shadow-black/[0.03] overflow-hidden max-w-lg mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-100">
           <button
             onClick={goToPrevMonth}
-            className="size-8 rounded-lg flex items-center justify-center hover:bg-slate-200 transition-colors"
+            className="size-9 rounded-lg flex items-center justify-center hover:bg-slate-200 active:bg-slate-300 transition-colors"
           >
-            <span className="material-symbols-outlined text-slate-600 text-lg">chevron_left</span>
+            <span className="material-symbols-outlined text-slate-600">chevron_left</span>
           </button>
-          <div className="text-center">
-            <button
-              onClick={goToToday}
-              className="text-sm font-bold text-slate-900 hover:text-primary transition-colors"
-            >
-              {MONTH_NAMES[currentMonth]} {currentYear}
-            </button>
-          </div>
+          <button
+            onClick={goToToday}
+            className="text-sm font-bold text-slate-900 hover:text-primary transition-colors px-3 py-1 rounded-lg hover:bg-white"
+          >
+            {MONTH_NAMES[currentMonth]} {currentYear}
+          </button>
           <button
             onClick={goToNextMonth}
-            className="size-8 rounded-lg flex items-center justify-center hover:bg-slate-200 transition-colors"
+            className="size-9 rounded-lg flex items-center justify-center hover:bg-slate-200 active:bg-slate-300 transition-colors"
           >
-            <span className="material-symbols-outlined text-slate-600 text-lg">chevron_right</span>
+            <span className="material-symbols-outlined text-slate-600">chevron_right</span>
           </button>
         </div>
 
         {/* Day names */}
-        <div className="grid grid-cols-7 border-b border-slate-100">
+        <div className="grid grid-cols-7">
           {DAY_NAMES.map((name) => (
             <div key={name} className="py-2 text-center text-[10px] font-bold text-slate-400 uppercase tracking-wider">
               {name}
@@ -153,64 +156,61 @@ export function InstallmentCalendar({ installments }: InstallmentCalendarProps) 
         </div>
 
         {/* Calendar grid */}
-        <div className="grid grid-cols-7">
+        <div className="grid grid-cols-7 gap-px bg-slate-100">
           {cells.map((day, idx) => {
             if (day === null) {
-              return <div key={`empty-${idx}`} className="aspect-square border-b border-r border-slate-50" />;
+              return <div key={`empty-${idx}`} className="bg-white h-12 sm:h-14" />;
             }
 
             const dateStr = toDateStr(currentYear, currentMonth, day);
-            const dayInstallments = installmentMap.get(dateStr) ?? [];
+            const dayInsts = installmentMap.get(dateStr) ?? [];
             const isToday = dateStr === todayStr;
-            const hasUnpaid = dayInstallments.some((i) => !i.is_paid);
-            const hasOverdue = dayInstallments.some(
-              (i) => !i.is_paid && new Date(i.due_date) < today
-            );
-            const allPaid = dayInstallments.length > 0 && dayInstallments.every((i) => i.is_paid);
-            const hasInstallments = dayInstallments.length > 0;
+            const hasOverdue = dayInsts.some((i) => !i.is_paid && new Date(i.due_date) < today);
+            const allPaid = dayInsts.length > 0 && dayInsts.every((i) => i.is_paid);
+            const hasUnpaid = dayInsts.some((i) => !i.is_paid) && !hasOverdue;
+            const hasInst = dayInsts.length > 0;
+            const dayTotal = dayInsts.reduce((s, i) => s + Number(i.amount), 0);
 
             return (
               <button
                 key={day}
-                onClick={() => hasInstallments ? setSelectedDay(dateStr) : undefined}
+                onClick={() => hasInst ? setSelectedDay(dateStr) : undefined}
                 className={cn(
-                  "aspect-square border-b border-r border-slate-50 flex flex-col items-center justify-center gap-0.5 relative transition-colors",
-                  hasInstallments && "cursor-pointer hover:bg-slate-50",
-                  !hasInstallments && "cursor-default",
-                  isToday && "bg-primary/5"
+                  "bg-white h-12 sm:h-14 flex flex-col items-center justify-center relative transition-all",
+                  hasInst && "cursor-pointer",
+                  !hasInst && "cursor-default",
+                  hasOverdue && "bg-red-50 hover:bg-red-100",
+                  hasUnpaid && "bg-blue-50 hover:bg-blue-100",
+                  allPaid && "bg-green-50 hover:bg-green-100",
+                  !hasInst && !isToday && "hover:bg-slate-50"
                 )}
               >
                 <span
                   className={cn(
-                    "text-xs font-semibold leading-none",
-                    isToday && "text-primary font-bold",
-                    !isToday && hasInstallments ? "text-slate-900" : "text-slate-400"
+                    "text-[13px] font-semibold leading-none",
+                    isToday && !hasInst && "text-primary font-extrabold",
+                    hasOverdue && "text-red-700 font-bold",
+                    hasUnpaid && "text-blue-700 font-bold",
+                    allPaid && "text-green-700 font-bold",
+                    !hasInst && !isToday && "text-slate-500"
                   )}
                 >
                   {day}
                 </span>
-                {hasInstallments && (
-                  <div className="flex gap-0.5 mt-0.5">
-                    {dayInstallments.slice(0, 3).map((inst, i) => (
-                      <div
-                        key={i}
-                        className={cn(
-                          "size-1.5 rounded-full",
-                          inst.is_paid
-                            ? "bg-green-400"
-                            : hasOverdue
-                            ? "bg-red-400"
-                            : "bg-blue-400"
-                        )}
-                      />
-                    ))}
-                    {dayInstallments.length > 3 && (
-                      <span className="text-[8px] text-slate-400 leading-none">+{dayInstallments.length - 3}</span>
+                {hasInst && (
+                  <span
+                    className={cn(
+                      "text-[8px] sm:text-[9px] font-bold leading-none mt-0.5",
+                      hasOverdue && "text-red-500",
+                      hasUnpaid && "text-blue-500",
+                      allPaid && "text-green-500"
                     )}
-                  </div>
+                  >
+                    {shortAmount(dayTotal)}
+                  </span>
                 )}
                 {isToday && (
-                  <div className="absolute bottom-0.5 w-4 h-0.5 rounded-full bg-primary" />
+                  <div className="absolute top-0.5 right-0.5 size-1.5 rounded-full bg-primary" />
                 )}
               </button>
             );
@@ -218,22 +218,24 @@ export function InstallmentCalendar({ installments }: InstallmentCalendarProps) 
         </div>
 
         {/* Month summary */}
-        <div className="px-4 py-3 bg-slate-50 border-t border-slate-100 flex flex-wrap items-center gap-4 text-xs">
-          <div className="flex items-center gap-1.5">
-            <div className="size-2.5 rounded-full bg-blue-400" />
-            <span className="text-slate-600 font-medium">Odenmemis: <strong className="text-slate-900">{formatCurrency(monthTotal)}</strong></span>
+        <div className="px-4 py-3 bg-slate-50 border-t border-slate-100">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
+            <div className="flex items-center gap-1.5">
+              <div className="size-3 rounded bg-blue-100 border border-blue-200" />
+              <span className="text-slate-600">Bekleyen: <strong className="text-slate-900">{formatCurrency(monthTotal)}</strong></span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="size-3 rounded bg-green-100 border border-green-200" />
+              <span className="text-slate-600">Odenen: <strong className="text-green-700">{formatCurrency(monthPaidTotal)}</strong></span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="size-3 rounded bg-red-100 border border-red-200" />
+              <span className="text-slate-600">Geciken</span>
+            </div>
           </div>
-          <div className="flex items-center gap-1.5">
-            <div className="size-2.5 rounded-full bg-green-400" />
-            <span className="text-slate-600 font-medium">Odenmis: <strong className="text-green-700">{formatCurrency(monthPaidTotal)}</strong></span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="size-2.5 rounded-full bg-red-400" />
-            <span className="text-slate-600 font-medium">Geciken</span>
-          </div>
-          <span className="ml-auto text-slate-400">
-            {monthInstallments.length} taksit
-          </span>
+          <p className="text-[10px] text-slate-400 mt-1.5">
+            Bu ay toplam {monthInstallments.length} taksit
+          </p>
         </div>
       </div>
 
@@ -241,14 +243,25 @@ export function InstallmentCalendar({ installments }: InstallmentCalendarProps) 
       <Modal
         open={!!selectedDay}
         onClose={() => setSelectedDay(null)}
-        title={selectedDay ? new Intl.DateTimeFormat("tr-TR", { day: "numeric", month: "long", year: "numeric" }).format(new Date(selectedDay)) : ""}
+        title={
+          selectedDay
+            ? new Intl.DateTimeFormat("tr-TR", {
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              }).format(new Date(selectedDay))
+            : ""
+        }
       >
         <div className="space-y-3 max-h-[60vh] overflow-y-auto">
           {selectedInstallments.length === 0 ? (
-            <p className="text-sm text-slate-500 text-center py-4">Bu gun taksit yok</p>
+            <p className="text-sm text-slate-500 text-center py-4">
+              Bu gun taksit yok
+            </p>
           ) : (
             selectedInstallments.map((inst) => {
-              const isPastDue = !inst.is_paid && new Date(inst.due_date) < today;
+              const isPastDue =
+                !inst.is_paid && new Date(inst.due_date) < today;
               return (
                 <div
                   key={inst.id}
@@ -265,16 +278,28 @@ export function InstallmentCalendar({ installments }: InstallmentCalendarProps) 
                     <div
                       className={cn(
                         "size-9 rounded-lg flex items-center justify-center",
-                        inst.is_paid ? "bg-green-100" : isPastDue ? "bg-red-100" : "bg-blue-100"
+                        inst.is_paid
+                          ? "bg-green-100"
+                          : isPastDue
+                          ? "bg-red-100"
+                          : "bg-blue-100"
                       )}
                     >
                       <span
                         className={cn(
                           "material-symbols-outlined text-lg",
-                          inst.is_paid ? "text-green-600" : isPastDue ? "text-red-600" : "text-blue-600"
+                          inst.is_paid
+                            ? "text-green-600"
+                            : isPastDue
+                            ? "text-red-600"
+                            : "text-blue-600"
                         )}
                       >
-                        {inst.is_paid ? "check_circle" : isPastDue ? "warning" : "schedule"}
+                        {inst.is_paid
+                          ? "check_circle"
+                          : isPastDue
+                          ? "warning"
+                          : "schedule"}
                       </span>
                     </div>
                     <div>
@@ -282,7 +307,9 @@ export function InstallmentCalendar({ installments }: InstallmentCalendarProps) 
                         {inst.loan?.bank_name ?? "Bilinmiyor"}
                       </p>
                       <p className="text-[11px] text-slate-500">
-                        {LOAN_TYPE_LABELS[inst.loan?.loan_type ?? ""] ?? inst.loan?.loan_type} - Taksit #{inst.installment_number}
+                        {LOAN_TYPE_LABELS[inst.loan?.loan_type ?? ""] ??
+                          inst.loan?.loan_type}{" "}
+                        - Taksit #{inst.installment_number}
                       </p>
                     </div>
                   </div>
@@ -293,10 +320,18 @@ export function InstallmentCalendar({ installments }: InstallmentCalendarProps) 
                     <p
                       className={cn(
                         "text-[10px] font-semibold uppercase",
-                        inst.is_paid ? "text-green-600" : isPastDue ? "text-red-600" : "text-blue-600"
+                        inst.is_paid
+                          ? "text-green-600"
+                          : isPastDue
+                          ? "text-red-600"
+                          : "text-blue-600"
                       )}
                     >
-                      {inst.is_paid ? "Odendi" : isPastDue ? "Gecikti" : "Bekliyor"}
+                      {inst.is_paid
+                        ? "Odendi"
+                        : isPastDue
+                        ? "Gecikti"
+                        : "Bekliyor"}
                     </p>
                   </div>
                 </div>
@@ -307,7 +342,12 @@ export function InstallmentCalendar({ installments }: InstallmentCalendarProps) 
             <div className="flex items-center justify-between pt-2 border-t border-slate-100">
               <span className="text-xs font-bold text-slate-500">Toplam</span>
               <span className="text-sm font-bold text-slate-900">
-                {formatCurrency(selectedInstallments.reduce((s, i) => s + Number(i.amount), 0))}
+                {formatCurrency(
+                  selectedInstallments.reduce(
+                    (s, i) => s + Number(i.amount),
+                    0
+                  )
+                )}
               </span>
             </div>
           )}
