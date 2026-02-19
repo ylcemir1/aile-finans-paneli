@@ -2,20 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import type { ActionResult, InsertInstallment } from "@/types";
-import { loanSchema, getFirstError, parseFormData } from "@/lib/validations";
-
-/**
- * Correctly calculate installment dates handling month overflow.
- * e.g., Jan 31 -> Feb 28 -> Mar 31 -> Apr 30
- */
-function getInstallmentDate(startDate: Date, monthOffset: number): Date {
-  const originalDay = startDate.getDate();
-  const result = new Date(startDate.getFullYear(), startDate.getMonth() + monthOffset, 1);
-  const lastDayOfMonth = new Date(result.getFullYear(), result.getMonth() + 1, 0).getDate();
-  result.setDate(Math.min(originalDay, lastDayOfMonth));
-  return result;
-}
+import type { ActionResult } from "@/types";
+import {
+  loanSchema,
+  loanUpdateSchema,
+  getFirstError,
+  parseFormData,
+} from "@/lib/validations";
+import { generateInstallmentSchedule } from "@/lib/utils/loan-calculations";
 
 export async function createLoan(
   formData: FormData
@@ -27,13 +21,24 @@ export async function createLoan(
   } = await supabase.auth.getUser();
   if (!user) return { success: false, error: "Oturum bulunamadi" };
 
-  const raw = parseFormData(formData, ["total_amount", "monthly_payment"]);
+  const raw = parseFormData(formData, [
+    "total_amount",
+    "monthly_payment",
+    "interest_rate",
+    "paid_amount",
+    "grace_period_months",
+    "statement_day",
+    "due_day",
+  ]);
   if (!raw.payer_id) raw.payer_id = user.id;
 
   const parsed = loanSchema.safeParse(raw);
   if (!parsed.success) {
     return { success: false, error: getFirstError(parsed.error) };
   }
+
+  const paidAmount = parsed.data.paid_amount ?? 0;
+  const remainingBalance = parsed.data.total_amount - paidAmount;
 
   const { data: loan, error: loanError } = await supabase
     .from("loans")
@@ -46,6 +51,15 @@ export async function createLoan(
       end_date: parsed.data.end_date,
       payer_id: parsed.data.payer_id,
       created_by: user.id,
+      interest_rate: parsed.data.interest_rate ?? 0,
+      interest_type: parsed.data.interest_type ?? "fixed",
+      paid_amount: paidAmount,
+      remaining_balance: remainingBalance,
+      status: "active",
+      grace_period_months: parsed.data.grace_period_months ?? 0,
+      statement_day: parsed.data.statement_day ?? null,
+      due_day: parsed.data.due_day ?? null,
+      notes: parsed.data.notes ?? "",
     })
     .select("id")
     .single();
@@ -57,27 +71,16 @@ export async function createLoan(
     };
   }
 
-  // Generate installments with correct date handling
-  const installments: InsertInstallment[] = [];
-  const start = new Date(parsed.data.start_date);
-  const end = new Date(parsed.data.end_date);
-  let monthOffset = 0;
-
-  while (true) {
-    const dueDate = getInstallmentDate(start, monthOffset);
-    if (dueDate > end) break;
-
-    installments.push({
-      loan_id: loan.id,
-      due_date: dueDate.toISOString().split("T")[0],
-      amount: parsed.data.monthly_payment,
-      is_paid: false,
-    });
-    monthOffset++;
-
-    // Safety limit
-    if (monthOffset > 600) break;
-  }
+  // Generate installments with new calculation utility
+  const installments = generateInstallmentSchedule({
+    loanId: loan.id,
+    startDate: parsed.data.start_date,
+    endDate: parsed.data.end_date,
+    monthlyPayment: parsed.data.monthly_payment,
+    dueDay: parsed.data.due_day,
+    gracePeriodMonths: parsed.data.grace_period_months,
+    paidAmount: paidAmount,
+  });
 
   if (installments.length > 0) {
     const { error: installError } = await supabase
@@ -107,6 +110,125 @@ export async function updateLoan(
   if (!user) return { success: false, error: "Oturum bulunamadi" };
 
   // Ownership check
+  const { data: existingLoan } = await supabase
+    .from("loans")
+    .select("created_by, paid_amount, total_amount")
+    .eq("id", id)
+    .single();
+
+  if (!existingLoan) return { success: false, error: "Kredi bulunamadi" };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  const isAdmin = profile?.role === "admin";
+  if (existingLoan.created_by !== user.id && !isAdmin) {
+    return { success: false, error: "Bu krediyi duzenleme yetkiniz yok" };
+  }
+
+  const raw = parseFormData(formData, [
+    "total_amount",
+    "monthly_payment",
+    "interest_rate",
+    "grace_period_months",
+    "statement_day",
+    "due_day",
+  ]);
+
+  // Handle regenerate_installments checkbox
+  raw.regenerate_installments = formData.get("regenerate_installments") === "true";
+
+  const parsed = loanUpdateSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { success: false, error: getFirstError(parsed.error) };
+  }
+
+  // Recalculate remaining balance
+  const currentPaidAmount = existingLoan.paid_amount ?? 0;
+  const remainingBalance = parsed.data.total_amount - currentPaidAmount;
+
+  const { error } = await supabase
+    .from("loans")
+    .update({
+      bank_name: parsed.data.bank_name,
+      loan_type: parsed.data.loan_type,
+      total_amount: parsed.data.total_amount,
+      monthly_payment: parsed.data.monthly_payment,
+      start_date: parsed.data.start_date,
+      end_date: parsed.data.end_date,
+      interest_rate: parsed.data.interest_rate ?? 0,
+      interest_type: parsed.data.interest_type ?? "fixed",
+      remaining_balance: remainingBalance,
+      status: parsed.data.status ?? "active",
+      grace_period_months: parsed.data.grace_period_months ?? 0,
+      statement_day: parsed.data.statement_day ?? null,
+      due_day: parsed.data.due_day ?? null,
+      notes: parsed.data.notes ?? "",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+
+  if (error) return { success: false, error: error.message };
+
+  // Optionally regenerate installments
+  if (parsed.data.regenerate_installments) {
+    // Delete existing installments
+    await supabase.from("installments").delete().eq("loan_id", id);
+
+    // Generate new installments
+    const installments = generateInstallmentSchedule({
+      loanId: id,
+      startDate: parsed.data.start_date,
+      endDate: parsed.data.end_date,
+      monthlyPayment: parsed.data.monthly_payment,
+      dueDay: parsed.data.due_day,
+      gracePeriodMonths: parsed.data.grace_period_months,
+      paidAmount: currentPaidAmount,
+    });
+
+    if (installments.length > 0) {
+      await supabase.from("installments").insert(installments);
+    }
+
+    // Recalculate paid_amount from fresh installments
+    const { data: freshInstallments } = await supabase
+      .from("installments")
+      .select("amount, is_paid")
+      .eq("loan_id", id);
+
+    if (freshInstallments) {
+      const newPaidAmount = freshInstallments
+        .filter((i) => i.is_paid)
+        .reduce((sum, i) => sum + i.amount, 0);
+
+      await supabase
+        .from("loans")
+        .update({
+          paid_amount: newPaidAmount,
+          remaining_balance: parsed.data.total_amount - newPaidAmount,
+        })
+        .eq("id", id);
+    }
+  }
+
+  revalidatePath("/loans");
+  revalidatePath(`/loans/${id}`);
+  revalidatePath("/");
+  return { success: true, data: undefined };
+}
+
+export async function closeLoan(id: string): Promise<ActionResult> {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "Oturum bulunamadi" };
+
+  // Ownership check
   const { data: loan } = await supabase
     .from("loans")
     .select("created_by")
@@ -123,18 +245,14 @@ export async function updateLoan(
 
   const isAdmin = profile?.role === "admin";
   if (loan.created_by !== user.id && !isAdmin) {
-    return { success: false, error: "Bu krediyi duzenleme yetkiniz yok" };
+    return { success: false, error: "Bu krediyi kapatma yetkiniz yok" };
   }
 
   const { error } = await supabase
     .from("loans")
     .update({
-      bank_name: formData.get("bank_name") as string,
-      loan_type: formData.get("loan_type") as string,
-      total_amount: parseFloat(formData.get("total_amount") as string),
-      monthly_payment: parseFloat(formData.get("monthly_payment") as string),
-      start_date: formData.get("start_date") as string,
-      end_date: formData.get("end_date") as string,
+      status: "closed",
+      updated_at: new Date().toISOString(),
     })
     .eq("id", id);
 

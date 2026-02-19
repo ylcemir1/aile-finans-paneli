@@ -36,19 +36,35 @@ export default async function BankAccountsPage({
     ]);
 
   const isAdmin = currentProfile?.role === "admin";
-  const totalBalance = (accounts ?? []).reduce(
-    (sum, a) => sum + Number(a.balance),
-    0
+  const allAccounts = accounts ?? [];
+
+  // Calculate TRY total (only TRY accounts count for main total)
+  const totalBalance = allAccounts
+    .filter((a) => (a.currency ?? "TRY") === "TRY")
+    .reduce((sum, a) => sum + Number(a.balance), 0);
+
+  // Currency breakdown for non-TRY currencies
+  const currencyMap = new Map<string, { total: number; count: number }>();
+  for (const a of allAccounts) {
+    const currency = a.currency ?? "TRY";
+    const existing = currencyMap.get(currency) ?? { total: 0, count: 0 };
+    existing.total += Number(a.balance);
+    existing.count += 1;
+    currencyMap.set(currency, existing);
+  }
+  const currencyBreakdown = Array.from(currencyMap.entries()).map(
+    ([currency, data]) => ({ currency, ...data })
   );
 
   // Filter accounts by search query
   const filteredAccounts = query
-    ? (accounts ?? []).filter(
+    ? allAccounts.filter(
         (a) =>
           a.bank_name.toLowerCase().includes(query) ||
-          a.account_name.toLowerCase().includes(query)
+          a.account_name.toLowerCase().includes(query) ||
+          (a.iban && a.iban.toLowerCase().includes(query))
       )
-    : (accounts ?? []);
+    : allAccounts;
 
   return (
     <div className="space-y-6">
@@ -63,10 +79,13 @@ export default async function BankAccountsPage({
       </div>
 
       {/* Summary card */}
-      <BalanceSummaryCard totalBalance={totalBalance} />
+      <BalanceSummaryCard
+        totalBalance={totalBalance}
+        currencyBreakdown={currencyBreakdown}
+      />
 
       {/* Search */}
-      {(accounts ?? []).length > 0 && <SearchBar />}
+      {allAccounts.length > 0 && <SearchBar />}
 
       {/* Account list */}
       <div>

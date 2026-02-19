@@ -30,6 +30,10 @@ export async function createBankAccount(
       account_name: parsed.data.account_name,
       balance: parsed.data.balance,
       owner_id: parsed.data.owner_id ?? user.id,
+      iban: parsed.data.iban ?? "",
+      account_type: parsed.data.account_type ?? "vadesiz",
+      currency: parsed.data.currency ?? "TRY",
+      account_number: parsed.data.account_number ?? "",
     });
 
   if (error) return { success: false, error: error.message };
@@ -82,6 +86,10 @@ export async function updateBankAccount(
       bank_name: parsed.data.bank_name,
       account_name: parsed.data.account_name,
       balance: parsed.data.balance,
+      iban: parsed.data.iban ?? "",
+      account_type: parsed.data.account_type ?? "vadesiz",
+      currency: parsed.data.currency ?? "TRY",
+      account_number: parsed.data.account_number ?? "",
     })
     .eq("id", id);
 

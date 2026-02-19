@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir /s /b)",
+      "Bash(cmd /c dir /s)",
+      "Bash(dir:*)",
+      "Bash(node:*)",
+      "Bash(npm --version:*)",
+      "Bash(npx:*)",
+      "Bash(npm show:*)",
+      "Bash(git --version:*)",
+      "Bash(where:*)",
+      "Bash(git init:*)",
+      "Bash(git status:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfeat: complete Aile Finans Paneli with all features\n\n- Dashboard with metric cards, upcoming installments, spending chart\n- Bank accounts with CRUD, search, edit modal\n- Loans with installment tracking and progress bars\n- Installments with filters and mark-paid functionality\n- Profile page with name editing\n- Desktop sidebar + mobile bottom nav \\(responsive\\)\n- Loading skeletons, empty states, animations\n- Zod validation, ownership checks, date bugfix\n- Supabase auth + RLS security\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")"
+    ]
+  }
+}

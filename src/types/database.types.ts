@@ -38,6 +38,10 @@ export type Database = {
           balance: number;
           owner_id: string;
           updated_at: string;
+          iban: string;
+          account_type: string;
+          currency: string;
+          account_number: string;
         };
         Insert: {
           id?: string;
@@ -46,6 +50,10 @@ export type Database = {
           balance?: number;
           owner_id: string;
           updated_at?: string;
+          iban?: string;
+          account_type?: string;
+          currency?: string;
+          account_number?: string;
         };
         Update: {
           id?: string;
@@ -54,6 +62,10 @@ export type Database = {
           balance?: number;
           owner_id?: string;
           updated_at?: string;
+          iban?: string;
+          account_type?: string;
+          currency?: string;
+          account_number?: string;
         };
         Relationships: [
           {
@@ -77,6 +89,16 @@ export type Database = {
           payer_id: string;
           created_by: string;
           created_at: string;
+          interest_rate: number;
+          interest_type: string;
+          paid_amount: number;
+          remaining_balance: number;
+          status: string;
+          grace_period_months: number;
+          statement_day: number | null;
+          due_day: number | null;
+          notes: string;
+          updated_at: string;
         };
         Insert: {
           id?: string;
@@ -89,6 +111,16 @@ export type Database = {
           payer_id: string;
           created_by: string;
           created_at?: string;
+          interest_rate?: number;
+          interest_type?: string;
+          paid_amount?: number;
+          remaining_balance?: number;
+          status?: string;
+          grace_period_months?: number;
+          statement_day?: number | null;
+          due_day?: number | null;
+          notes?: string;
+          updated_at?: string;
         };
         Update: {
           id?: string;
@@ -101,6 +133,16 @@ export type Database = {
           payer_id?: string;
           created_by?: string;
           created_at?: string;
+          interest_rate?: number;
+          interest_type?: string;
+          paid_amount?: number;
+          remaining_balance?: number;
+          status?: string;
+          grace_period_months?: number;
+          statement_day?: number | null;
+          due_day?: number | null;
+          notes?: string;
+          updated_at?: string;
         };
         Relationships: [
           {
@@ -127,6 +169,7 @@ export type Database = {
           amount: number;
           is_paid: boolean;
           paid_at: string | null;
+          installment_number: number;
         };
         Insert: {
           id?: string;
@@ -135,6 +178,7 @@ export type Database = {
           amount: number;
           is_paid?: boolean;
           paid_at?: string | null;
+          installment_number?: number;
         };
         Update: {
           id?: string;
@@ -143,6 +187,7 @@ export type Database = {
           amount?: number;
           is_paid?: boolean;
           paid_at?: string | null;
+          installment_number?: number;
         };
         Relationships: [
           {
@@ -150,6 +195,122 @@ export type Database = {
             columns: ["loan_id"];
             isOneToOne: false;
             referencedRelation: "loans";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      credit_cards: {
+        Row: {
+          id: string;
+          card_name: string;
+          bank_name: string;
+          card_limit: number;
+          current_balance: number;
+          minimum_payment: number;
+          statement_day: number;
+          due_day: number;
+          status: string;
+          notes: string;
+          owner_id: string;
+          created_by: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          card_name: string;
+          bank_name: string;
+          card_limit: number;
+          current_balance?: number;
+          minimum_payment?: number;
+          statement_day: number;
+          due_day: number;
+          status?: string;
+          notes?: string;
+          owner_id: string;
+          created_by: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          card_name?: string;
+          bank_name?: string;
+          card_limit?: number;
+          current_balance?: number;
+          minimum_payment?: number;
+          statement_day?: number;
+          due_day?: number;
+          status?: string;
+          notes?: string;
+          owner_id?: string;
+          created_by?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "credit_cards_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "credit_cards_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      credit_card_installments: {
+        Row: {
+          id: string;
+          credit_card_id: string;
+          merchant_name: string;
+          description: string;
+          total_amount: number;
+          installment_count: number;
+          installment_amount: number;
+          paid_installments: number;
+          start_date: string;
+          is_completed: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          credit_card_id: string;
+          merchant_name: string;
+          description?: string;
+          total_amount: number;
+          installment_count: number;
+          installment_amount: number;
+          paid_installments?: number;
+          start_date: string;
+          is_completed?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          credit_card_id?: string;
+          merchant_name?: string;
+          description?: string;
+          total_amount?: number;
+          installment_count?: number;
+          installment_amount?: number;
+          paid_installments?: number;
+          start_date?: string;
+          is_completed?: boolean;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "credit_card_installments_credit_card_id_fkey";
+            columns: ["credit_card_id"];
+            isOneToOne: false;
+            referencedRelation: "credit_cards";
             referencedColumns: ["id"];
           },
         ];

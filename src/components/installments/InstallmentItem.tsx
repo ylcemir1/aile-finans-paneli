@@ -15,6 +15,7 @@ interface InstallmentItemProps {
   showMarkPaid?: boolean;
   paidCount?: number;
   totalCount?: number;
+  installmentNumber?: number;
 }
 
 export function InstallmentItem({

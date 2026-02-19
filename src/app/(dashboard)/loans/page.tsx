@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { LoanCard } from "@/components/loans/LoanCard";
-import { LoanForm } from "@/components/loans/LoanForm";
+import { LoanFormModal } from "@/components/loans/LoanFormModal";
 import { InstallmentItem } from "@/components/installments/InstallmentItem";
 import { formatCurrency } from "@/lib/utils/currency";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -41,13 +41,18 @@ export default async function LoansPage() {
   ]);
 
   const isAdmin = currentProfile?.role === "admin";
+  const activeLoans = (loans ?? []).filter((l) => l.status !== "closed");
 
-  const totalDebt = (loans ?? []).reduce(
-    (sum, l) => sum + Number(l.total_amount),
+  const totalDebt = activeLoans.reduce(
+    (sum, l) => sum + Number(l.remaining_balance ?? l.total_amount),
     0
   );
-  const monthlyPayment = (loans ?? []).reduce(
+  const monthlyPayment = activeLoans.reduce(
     (sum, l) => sum + Number(l.monthly_payment),
+    0
+  );
+  const totalPaid = (loans ?? []).reduce(
+    (sum, l) => sum + Number(l.paid_amount ?? 0),
     0
   );
 
@@ -58,7 +63,7 @@ export default async function LoansPage() {
         <h1 className="text-xl font-bold text-slate-900">
           Krediler ve Taksitler
         </h1>
-        <LoanForm
+        <LoanFormModal
           profiles={profiles ?? []}
           currentUserId={user.id}
           isAdmin={isAdmin}
@@ -72,7 +77,7 @@ export default async function LoansPage() {
             <span className="material-symbols-outlined text-sm">
               account_balance_wallet
             </span>
-            <p className="text-sm font-medium">Toplam Borç</p>
+            <p className="text-sm font-medium">Kalan Borc</p>
           </div>
           <p className="tracking-tight text-2xl font-extrabold">
             {formatCurrency(totalDebt)}
@@ -81,10 +86,19 @@ export default async function LoansPage() {
         <div className="flex min-w-[150px] flex-1 flex-col gap-2 rounded-xl p-5 bg-white border border-slate-100 shadow-sm">
           <div className="flex items-center gap-2 text-slate-500">
             <span className="material-symbols-outlined text-sm">payments</span>
-            <p className="text-sm font-medium">Aylık Çıkış</p>
+            <p className="text-sm font-medium">Aylik Cikis</p>
           </div>
           <p className="text-slate-900 tracking-tight text-2xl font-extrabold">
             {formatCurrency(monthlyPayment)}
+          </p>
+        </div>
+        <div className="flex min-w-[150px] flex-1 flex-col gap-2 rounded-xl p-5 bg-white border border-slate-100 shadow-sm">
+          <div className="flex items-center gap-2 text-green-600">
+            <span className="material-symbols-outlined text-sm">check_circle</span>
+            <p className="text-sm font-medium">Toplam Odenen</p>
+          </div>
+          <p className="text-green-700 tracking-tight text-2xl font-extrabold">
+            {formatCurrency(totalPaid)}
           </p>
         </div>
       </div>
@@ -97,8 +111,8 @@ export default async function LoansPage() {
         {(loans ?? []).length === 0 ? (
           <EmptyState
             icon="credit_card"
-            title="Henüz kredi eklenmedi"
-            description="Kredilerinizi ekleyerek taksit takibini başlatın."
+            title="Henuz kredi eklenmedi"
+            description="Kredilerinizi ekleyerek taksit takibini baslatin."
             actionLabel="+ Kredi Ekle"
             iconBg="bg-purple-50"
             iconColor="text-purple-500"
@@ -106,7 +120,13 @@ export default async function LoansPage() {
         ) : (
           <div className="flex overflow-x-auto gap-4 py-2 no-scrollbar">
             {(loans ?? []).map((loan) => (
-              <LoanCard key={loan.id} loan={loan} />
+              <LoanCard
+                key={loan.id}
+                loan={loan}
+                profiles={profiles ?? []}
+                currentUserId={user.id}
+                isAdmin={isAdmin}
+              />
             ))}
           </div>
         )}
@@ -121,8 +141,8 @@ export default async function LoansPage() {
           {(upcomingInstallments ?? []).length === 0 ? (
             <EmptyState
               icon="event_available"
-              title="Taksit bulunamadı"
-              description="Kredi ekledikten sonra taksitler otomatik oluşturulacak."
+              title="Taksit bulunamadi"
+              description="Kredi ekledikten sonra taksitler otomatik olusturulacak."
               iconBg="bg-emerald-50"
               iconColor="text-emerald-500"
             />

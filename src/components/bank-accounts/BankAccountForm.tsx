@@ -6,6 +6,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
+import { ACCOUNT_TYPES, CURRENCIES } from "@/types";
 
 interface BankAccountFormProps {
   profiles: { id: string; full_name: string }[];
@@ -50,26 +51,78 @@ export function BankAccountForm({
               <p className="text-sm text-red-700">{error}</p>
             </div>
           )}
-          <Input
-            label="Banka Adı"
-            name="bank_name"
-            placeholder="Ziraat Bankası"
-            required
-          />
-          <Input
-            label="Hesap Adı"
-            name="account_name"
-            placeholder="Ana Hesap"
-            required
-          />
-          <Input
-            label="Bakiye"
-            name="balance"
-            type="number"
-            step="0.01"
-            placeholder="0.00"
-            required
-          />
+
+          {/* Temel Bilgiler */}
+          <div className="space-y-3">
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+              Temel Bilgiler
+            </p>
+            <Input
+              label="Banka Adi"
+              name="bank_name"
+              placeholder="Ziraat Bankasi"
+              required
+            />
+            <Input
+              label="Hesap Adi"
+              name="account_name"
+              placeholder="Ana Hesap"
+              required
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <Select
+                label="Hesap Turu"
+                name="account_type"
+                options={ACCOUNT_TYPES.map((t) => ({
+                  value: t.value,
+                  label: t.label,
+                }))}
+                defaultValue="vadesiz"
+              />
+              <Select
+                label="Para Birimi"
+                name="currency"
+                options={CURRENCIES.map((c) => ({
+                  value: c.value,
+                  label: `${c.symbol} ${c.label}`,
+                }))}
+                defaultValue="TRY"
+              />
+            </div>
+          </div>
+
+          {/* Bakiye */}
+          <div className="space-y-3">
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+              Bakiye Bilgisi
+            </p>
+            <Input
+              label="Bakiye"
+              name="balance"
+              type="number"
+              step="0.01"
+              placeholder="0.00"
+              required
+            />
+          </div>
+
+          {/* Hesap Detaylari */}
+          <div className="space-y-3">
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+              Hesap Detaylari
+            </p>
+            <Input
+              label="IBAN"
+              name="iban"
+              placeholder="TR00 0000 0000 0000 0000 0000 00"
+            />
+            <Input
+              label="Hesap Numarasi"
+              name="account_number"
+              placeholder="1234567890"
+            />
+          </div>
+
           {isAdmin && (
             <Select
               label="Hesap Sahibi"

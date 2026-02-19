@@ -16,9 +16,19 @@ interface UpcomingInstallmentsProps {
 }
 
 const loanIcons: Record<string, { icon: string; bgColor: string; textColor: string }> = {
+  // New keys (from LOAN_TYPES values)
+  konut: { icon: "home", bgColor: "bg-rose-50", textColor: "text-rose-600" },
+  tasit: { icon: "directions_car", bgColor: "bg-blue-50", textColor: "text-blue-600" },
+  ihtiyac: { icon: "shopping_bag", bgColor: "bg-amber-50", textColor: "text-amber-600" },
+  kobi: { icon: "business", bgColor: "bg-teal-50", textColor: "text-teal-600" },
+  esnaf: { icon: "storefront", bgColor: "bg-orange-50", textColor: "text-orange-600" },
+  tarim: { icon: "agriculture", bgColor: "bg-green-50", textColor: "text-green-600" },
+  egitim: { icon: "school", bgColor: "bg-indigo-50", textColor: "text-indigo-600" },
+  diger: { icon: "account_balance", bgColor: "bg-slate-50", textColor: "text-slate-600" },
+  // Legacy support for old loan type labels
   "Konut Kredisi": { icon: "home", bgColor: "bg-rose-50", textColor: "text-rose-600" },
-  "Taşıt Kredisi": { icon: "directions_car", bgColor: "bg-blue-50", textColor: "text-blue-600" },
-  "İhtiyaç Kredisi": { icon: "shopping_bag", bgColor: "bg-amber-50", textColor: "text-amber-600" },
+  "Tasit Kredisi": { icon: "directions_car", bgColor: "bg-blue-50", textColor: "text-blue-600" },
+  "Ihtiyac Kredisi": { icon: "shopping_bag", bgColor: "bg-amber-50", textColor: "text-amber-600" },
 };
 
 function getIconConfig(loanType: string) {
@@ -32,8 +42,8 @@ export function UpcomingInstallments({
     return (
       <EmptyState
         icon="event_available"
-        title="Yaklaşan ödeme yok"
-        description="Tebrikler! Yaklaşan taksit ödemeniz bulunmuyor."
+        title="Yaklasan odeme yok"
+        description="Tebrikler! Yaklasan taksit odemeniz bulunmuyor."
         iconBg="bg-emerald-50"
         iconColor="text-emerald-500"
       />
@@ -67,12 +77,12 @@ export function UpcomingInstallments({
                 </p>
                 <p className="text-xs text-slate-500">
                   {inst.is_paid
-                    ? `Ödendi`
+                    ? "Odendi"
                     : days < 0
-                    ? `${Math.abs(days)} gün gecikti`
+                    ? `${Math.abs(days)} gun gecikti`
                     : days === 0
-                    ? "Bugün"
-                    : `${days} gün kaldı`}{" "}
+                    ? "Bugun"
+                    : `${days} gun kaldi`}{" "}
                   • {formatCurrency(inst.amount)}
                 </p>
               </div>
