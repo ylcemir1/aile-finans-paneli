@@ -159,7 +159,7 @@ export function InstallmentCalendar({ installments }: InstallmentCalendarProps) 
         <div className="grid grid-cols-7 gap-px bg-slate-100">
           {cells.map((day, idx) => {
             if (day === null) {
-              return <div key={`empty-${idx}`} className="bg-white h-12 sm:h-14" />;
+              return <div key={`empty-${idx}`} className="bg-white h-14 sm:h-16" />;
             }
 
             const dateStr = toDateStr(currentYear, currentMonth, day);
@@ -176,22 +176,30 @@ export function InstallmentCalendar({ installments }: InstallmentCalendarProps) 
                 key={day}
                 onClick={() => hasInst ? setSelectedDay(dateStr) : undefined}
                 className={cn(
-                  "bg-white h-12 sm:h-14 flex flex-col items-center justify-center relative transition-all",
+                  "bg-white h-14 sm:h-16 flex flex-col items-center justify-center relative transition-all",
                   hasInst && "cursor-pointer",
                   !hasInst && "cursor-default",
-                  hasOverdue && "bg-red-50 hover:bg-red-100",
-                  hasUnpaid && "bg-blue-50 hover:bg-blue-100",
-                  allPaid && "bg-green-50 hover:bg-green-100",
+                  hasOverdue && "bg-red-100 hover:bg-red-200",
+                  hasUnpaid && "bg-blue-100 hover:bg-blue-200",
+                  allPaid && "bg-green-100 hover:bg-green-200",
                   !hasInst && !isToday && "hover:bg-slate-50"
                 )}
               >
+                {hasInst && (
+                  <div className={cn(
+                    "absolute inset-x-1 inset-y-1 rounded-lg border-2",
+                    hasOverdue && "border-red-300",
+                    hasUnpaid && "border-blue-300",
+                    allPaid && "border-green-300"
+                  )} />
+                )}
                 <span
                   className={cn(
-                    "text-[13px] font-semibold leading-none",
+                    "text-sm font-semibold leading-none relative z-10",
                     isToday && !hasInst && "text-primary font-extrabold",
-                    hasOverdue && "text-red-700 font-bold",
-                    hasUnpaid && "text-blue-700 font-bold",
-                    allPaid && "text-green-700 font-bold",
+                    hasOverdue && "text-red-800 font-extrabold",
+                    hasUnpaid && "text-blue-800 font-extrabold",
+                    allPaid && "text-green-800 font-extrabold",
                     !hasInst && !isToday && "text-slate-500"
                   )}
                 >
@@ -200,17 +208,17 @@ export function InstallmentCalendar({ installments }: InstallmentCalendarProps) 
                 {hasInst && (
                   <span
                     className={cn(
-                      "text-[8px] sm:text-[9px] font-bold leading-none mt-0.5",
-                      hasOverdue && "text-red-500",
-                      hasUnpaid && "text-blue-500",
-                      allPaid && "text-green-500"
+                      "text-[10px] sm:text-xs font-bold leading-none mt-0.5 relative z-10",
+                      hasOverdue && "text-red-600",
+                      hasUnpaid && "text-blue-600",
+                      allPaid && "text-green-600"
                     )}
                   >
                     {shortAmount(dayTotal)}
                   </span>
                 )}
                 {isToday && (
-                  <div className="absolute top-0.5 right-0.5 size-1.5 rounded-full bg-primary" />
+                  <div className="absolute top-0.5 right-0.5 size-2 rounded-full bg-primary z-10" />
                 )}
               </button>
             );
