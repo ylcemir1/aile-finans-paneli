@@ -37,11 +37,11 @@ export default async function DashboardLayout({
   };
 
   return (
-    <div className="min-h-screen bg-background-light pb-24 md:pb-0">
+    <div className="min-h-screen bg-background-light overflow-x-hidden pb-[calc(env(safe-area-inset-bottom)+6rem)] md:pb-0">
       <Sidebar profile={profileData} overdueCount={overdueCount ?? 0} />
       <div className="md:ml-64">
         <Navbar profile={profileData} />
-        <main className="px-6 space-y-6">{children}</main>
+        <main className="px-4 sm:px-6 space-y-6">{children}</main>
       </div>
       <BottomNav overdueCount={overdueCount ?? 0} />
     </div>

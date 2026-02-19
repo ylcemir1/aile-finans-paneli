@@ -130,7 +130,7 @@ export function LoanFormModal({
               defaultValue={loan?.monthly_payment}
               required
             />
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Input
                 label="Faiz Orani (%)"
                 name="interest_rate"
@@ -166,7 +166,7 @@ export function LoanFormModal({
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
               Tarih Bilgileri
             </p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Input
                 label="Baslangic"
                 name="start_date"
@@ -182,7 +182,7 @@ export function LoanFormModal({
                 required
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Input
                 label="Kesim Gunu"
                 name="statement_day"

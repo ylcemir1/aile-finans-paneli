@@ -20,7 +20,7 @@ export function BottomNav({ overdueCount = 0 }: BottomNavProps) {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-md border-t border-slate-200 px-6 py-3 pb-safe z-20 md:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 px-4 sm:px-6 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] z-50 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] md:hidden">
       <div className="flex items-center justify-between max-w-lg mx-auto">
         {navItems.map(({ href, label, icon }) => {
           const isActive = href === "/" ? pathname === "/" : pathname.startsWith(href);

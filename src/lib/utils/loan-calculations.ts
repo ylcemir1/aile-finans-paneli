@@ -25,6 +25,22 @@ function getInstallmentDate(
   return result;
 }
 
+function parseDateLocal(dateStr: string): Date {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  return new Date(year, (month ?? 1) - 1, day ?? 1);
+}
+
+function formatDateLocal(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function toMonthIndex(date: Date): number {
+  return date.getFullYear() * 12 + date.getMonth();
+}
+
 interface GenerateInstallmentScheduleParams {
   loanId: string;
   startDate: string;
@@ -54,15 +70,21 @@ export function generateInstallmentSchedule(
   } = params;
 
   const installments: InsertInstallment[] = [];
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  let monthOffset = gracePeriodMonths; // Skip grace period months
+  const start = parseDateLocal(startDate);
+  const end = parseDateLocal(endDate);
+  const startMonthIndex = toMonthIndex(start);
+  const endMonthIndex = toMonthIndex(end);
+  const safeGracePeriod = Math.max(0, gracePeriodMonths);
   let installmentNumber = 1;
   let cumulativePaid = 0;
 
-  while (true) {
+  // Generate installments month-by-month (inclusive by month)
+  // so due_day day-of-month does not drop the last month.
+  for (let monthOffset = safeGracePeriod; monthOffset <= 600; monthOffset++) {
+    const currentMonthIndex = startMonthIndex + monthOffset;
+    if (currentMonthIndex > endMonthIndex) break;
+
     const dueDateObj = getInstallmentDate(start, monthOffset, dueDay);
-    if (dueDateObj > end) break;
 
     // Determine if this installment should be marked as paid (for partial loans)
     const isPaid = cumulativePaid + monthlyPayment <= paidAmount;
@@ -72,7 +94,7 @@ export function generateInstallmentSchedule(
 
     installments.push({
       loan_id: loanId,
-      due_date: dueDateObj.toISOString().split("T")[0],
+      due_date: formatDateLocal(dueDateObj),
       amount: monthlyPayment,
       is_paid: isPaid,
       paid_at: isPaid ? new Date().toISOString() : null,
@@ -80,10 +102,6 @@ export function generateInstallmentSchedule(
     });
 
     installmentNumber++;
-    monthOffset++;
-
-    // Safety limit
-    if (monthOffset > 600) break;
   }
 
   return installments;
