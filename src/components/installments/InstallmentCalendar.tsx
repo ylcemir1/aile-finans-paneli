@@ -179,18 +179,18 @@ export function InstallmentCalendar({ installments }: InstallmentCalendarProps) 
                   "bg-white h-14 sm:h-16 flex flex-col items-center justify-center relative transition-all",
                   hasInst && "cursor-pointer",
                   !hasInst && "cursor-default",
-                  hasOverdue && "bg-red-100 hover:bg-red-200",
-                  hasUnpaid && "bg-blue-100 hover:bg-blue-200",
-                  allPaid && "bg-green-100 hover:bg-green-200",
+                  hasOverdue && "bg-red-200 hover:bg-red-300",
+                  hasUnpaid && "bg-blue-200 hover:bg-blue-300",
+                  allPaid && "bg-green-200 hover:bg-green-300",
                   !hasInst && !isToday && "hover:bg-slate-50"
                 )}
               >
                 {hasInst && (
                   <div className={cn(
                     "absolute inset-x-1 inset-y-1 rounded-lg border-2",
-                    hasOverdue && "border-red-300",
-                    hasUnpaid && "border-blue-300",
-                    allPaid && "border-green-300"
+                    hasOverdue && "border-red-400",
+                    hasUnpaid && "border-blue-400",
+                    allPaid && "border-green-400"
                   )} />
                 )}
                 <span
