@@ -72,8 +72,26 @@ export async function GET(request: Request) {
     ...(upcomingInstallments ?? []).map((i) => ({ ...i, _type: "upcoming" as const })),
   ];
 
-  if (allInstallments.length === 0) {
+  if (allInstallments.length === 0 && !isTest) {
     return NextResponse.json({ message: "No reminders needed", sent: 0 });
+  }
+
+  // Test mode: fetch all unpaid installments if no natural reminders exist
+  if (isTest && allInstallments.length === 0) {
+    const { data: testInstallments } = await supabase
+      .from("installments")
+      .select("*, loan:loans(id, bank_name, loan_type, payer_id)")
+      .eq("is_paid", false)
+      .order("due_date", { ascending: true })
+      .limit(5);
+
+    if (!testInstallments || testInstallments.length === 0) {
+      return NextResponse.json({ message: "No unpaid installments found for test", sent: 0 });
+    }
+
+    for (const inst of testInstallments) {
+      allInstallments.push({ ...inst, _type: "upcoming" as const });
+    }
   }
 
   const payerIds = [...new Set(allInstallments.map((i) => i.loan?.payer_id).filter(Boolean))] as string[];
