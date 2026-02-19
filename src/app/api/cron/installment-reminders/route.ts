@@ -128,10 +128,15 @@ export async function GET(request: Request) {
 
   for (const [key, installments] of grouped) {
     const [payerId, type] = key.split("__") as [string, "overdue" | "due_today" | "upcoming"];
-    const email = userEmailMap.get(payerId);
+    let email = userEmailMap.get(payerId);
     if (!email) {
       errors.push(`No email found for payer ${payerId}`);
       continue;
+    }
+
+    // Test mode: override recipient to Resend verified email
+    if (isTest) {
+      email = "yusufemiryolcu2004@gmail.com";
     }
 
     const userName = userNameMap.get(payerId) || "Kullanici";
