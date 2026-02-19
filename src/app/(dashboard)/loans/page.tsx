@@ -36,8 +36,7 @@ export default async function LoansPage() {
     supabase
       .from("installments")
       .select("*, loan:loans(id, bank_name, loan_type)")
-      .order("due_date", { ascending: true })
-      .limit(10),
+      .order("due_date", { ascending: true }),
   ]);
 
   const isAdmin = currentProfile?.role === "admin";
