@@ -6,6 +6,7 @@ import { formatMonthDay, daysUntil } from "@/lib/utils/date";
 import { MarkPaidButton } from "./MarkPaidButton";
 import { updateInstallment } from "@/actions/installments";
 import { Modal } from "@/components/ui/Modal";
+import type { LoanColor } from "@/lib/utils/loan-colors";
 
 interface InstallmentItemProps {
   installment: {
@@ -17,6 +18,7 @@ interface InstallmentItemProps {
     paid_at: string | null;
   };
   loanInfo?: string;
+  loanColor?: LoanColor;
   showMarkPaid?: boolean;
   paidCount?: number;
   totalCount?: number;
@@ -26,6 +28,7 @@ interface InstallmentItemProps {
 export function InstallmentItem({
   installment,
   loanInfo,
+  loanColor,
   showMarkPaid = true,
   paidCount,
   totalCount,
@@ -39,20 +42,19 @@ export function InstallmentItem({
   const isOverdue = !installment.is_paid && days < 0;
   const isPendingPayment = !installment.is_paid && days >= 0;
 
-  let borderColor = "border-slate-300";
+  const borderColor = loanColor?.border ?? (isOverdue ? "border-red-500" : isPendingPayment ? "border-primary" : "border-slate-300");
+
   let dateBg = "bg-slate-200";
   let dateText = "text-slate-500";
   let statusText = "";
 
   if (isOverdue) {
-    borderColor = "border-red-500";
     dateBg = "bg-red-50";
     dateText = "text-red-600";
     statusText = `${Math.abs(days)} gün gecikti`;
   } else if (isPendingPayment) {
-    borderColor = "border-primary";
-    dateBg = "bg-primary/10";
-    dateText = "text-primary";
+    dateBg = loanColor ? `${loanColor.bg}` : "bg-primary/10";
+    dateText = loanColor ? `${loanColor.text}` : "text-primary";
     statusText = days === 0 ? "Bugün" : `${days} gün sonra`;
   } else {
     statusText = "Ödendi";
@@ -93,15 +95,32 @@ export function InstallmentItem({
               <span className="text-lg font-extrabold leading-none">{day}</span>
             </div>
             <div>
-              <p
-                className={`text-sm font-bold leading-tight ${
-                  installment.is_paid
-                    ? "text-slate-400 line-through"
-                    : "text-slate-900"
-                }`}
-              >
-                {loanInfo ?? "Taksit Ödemesi"}
-              </p>
+              {loanInfo && loanColor ? (
+                <span
+                  className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-bold ${
+                    installment.is_paid
+                      ? "bg-slate-100 text-slate-400 line-through"
+                      : `${loanColor.bg} ${loanColor.text}`
+                  }`}
+                >
+                  <span
+                    className={`size-2 rounded-full shrink-0 ${
+                      installment.is_paid ? "bg-slate-300" : loanColor.dot
+                    }`}
+                  />
+                  {loanInfo}
+                </span>
+              ) : (
+                <p
+                  className={`text-sm font-bold leading-tight ${
+                    installment.is_paid
+                      ? "text-slate-400 line-through"
+                      : "text-slate-900"
+                  }`}
+                >
+                  {loanInfo ?? "Taksit Ödemesi"}
+                </p>
+              )}
               <p
                 className={`text-xs font-medium ${
                   isOverdue

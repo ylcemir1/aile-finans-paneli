@@ -4,6 +4,7 @@ import { useState } from "react";
 import { cn } from "@/lib/utils/cn";
 import { formatCurrency } from "@/lib/utils/currency";
 import { Modal } from "@/components/ui/Modal";
+import type { LoanColor } from "@/lib/utils/loan-colors";
 
 interface CalendarInstallment {
   id: string;
@@ -21,6 +22,7 @@ interface CalendarInstallment {
 
 interface InstallmentCalendarProps {
   installments: CalendarInstallment[];
+  loanColorMap?: Record<string, LoanColor>;
 }
 
 const DAY_NAMES = ["Pzt", "Sal", "Car", "Per", "Cum", "Cmt", "Paz"];
@@ -58,7 +60,7 @@ function shortAmount(n: number): string {
   return String(Math.round(n));
 }
 
-export function InstallmentCalendar({ installments }: InstallmentCalendarProps) {
+export function InstallmentCalendar({ installments, loanColorMap = {} }: InstallmentCalendarProps) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
@@ -270,6 +272,7 @@ export function InstallmentCalendar({ installments }: InstallmentCalendarProps) 
             selectedInstallments.map((inst) => {
               const isPastDue =
                 !inst.is_paid && new Date(inst.due_date) < today;
+              const color = loanColorMap[inst.loan_id];
               return (
                 <div
                   key={inst.id}
@@ -285,7 +288,7 @@ export function InstallmentCalendar({ installments }: InstallmentCalendarProps) 
                   <div className="flex items-center gap-3">
                     <div
                       className={cn(
-                        "size-9 rounded-lg flex items-center justify-center",
+                        "size-9 rounded-lg flex items-center justify-center relative",
                         inst.is_paid
                           ? "bg-green-100"
                           : isPastDue
@@ -309,11 +312,21 @@ export function InstallmentCalendar({ installments }: InstallmentCalendarProps) 
                           ? "warning"
                           : "schedule"}
                       </span>
+                      {color && (
+                        <span className={cn("absolute -top-1 -right-1 size-3 rounded-full border-2 border-white", color.dot)} />
+                      )}
                     </div>
                     <div>
-                      <p className="text-sm font-bold text-slate-900">
-                        {inst.loan?.bank_name ?? "Bilinmiyor"}
-                      </p>
+                      {color ? (
+                        <span className={cn("inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs font-bold", color.bg, color.text)}>
+                          <span className={cn("size-1.5 rounded-full shrink-0", color.dot)} />
+                          {inst.loan?.bank_name ?? "Bilinmiyor"}
+                        </span>
+                      ) : (
+                        <p className="text-sm font-bold text-slate-900">
+                          {inst.loan?.bank_name ?? "Bilinmiyor"}
+                        </p>
+                      )}
                       <p className="text-[11px] text-slate-500">
                         {LOAN_TYPE_LABELS[inst.loan?.loan_type ?? ""] ??
                           inst.loan?.loan_type}{" "}

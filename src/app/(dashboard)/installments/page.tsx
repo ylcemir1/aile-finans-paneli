@@ -4,6 +4,7 @@ import { InstallmentItem } from "@/components/installments/InstallmentItem";
 import { InstallmentCalendar } from "@/components/installments/InstallmentCalendar";
 import { cn } from "@/lib/utils/cn";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { buildLoanColorMap } from "@/lib/utils/loan-colors";
 
 const filters = [
   { label: "Tumu", value: "" },
@@ -26,6 +27,8 @@ export default async function InstallmentsPage({
     .from("installments")
     .select("*, loan:loans(id, bank_name, loan_type)")
     .order("due_date", { ascending: true });
+
+  const loanColorMap = buildLoanColorMap(allInstallments ?? []);
 
   let filteredInstallments = allInstallments ?? [];
 
@@ -80,7 +83,7 @@ export default async function InstallmentsPage({
       </div>
 
       {view === "calendar" ? (
-        <InstallmentCalendar installments={allInstallments ?? []} />
+        <InstallmentCalendar installments={allInstallments ?? []} loanColorMap={loanColorMap} />
       ) : (
         <>
           {/* Filter chips */}
@@ -121,6 +124,7 @@ export default async function InstallmentsPage({
                       ? `${inst.loan.bank_name} - ${inst.loan.loan_type}`
                       : undefined
                   }
+                  loanColor={loanColorMap[inst.loan_id]}
                 />
               ))
             )}
