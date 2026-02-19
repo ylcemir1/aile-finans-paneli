@@ -124,11 +124,15 @@ export async function GET(request: Request) {
   }
 
   let sentCount = 0;
+  const errors: string[] = [];
 
   for (const [key, installments] of grouped) {
     const [payerId, type] = key.split("__") as [string, "overdue" | "due_today" | "upcoming"];
     const email = userEmailMap.get(payerId);
-    if (!email) continue;
+    if (!email) {
+      errors.push(`No email found for payer ${payerId}`);
+      continue;
+    }
 
     const userName = userNameMap.get(payerId) || "Kullanici";
 
@@ -156,14 +160,23 @@ export async function GET(request: Request) {
       type,
     });
 
-    if (success) sentCount++;
+    if (success) {
+      sentCount++;
+    } else {
+      errors.push(`Failed to send email to ${email}`);
+    }
   }
 
   return NextResponse.json({
-    message: `Reminders sent successfully`,
+    message: sentCount > 0 ? "Reminders sent successfully" : "No emails sent",
     sent: sentCount,
+    totalInstallments: allInstallments.length,
     overdue: overdueInstallments?.length ?? 0,
     dueToday: todayInstallments?.length ?? 0,
     upcoming: upcomingInstallments?.length ?? 0,
+    payerCount: payerIds.length,
+    emailCount: userEmailMap.size,
+    isTest,
+    errors: errors.length > 0 ? errors : undefined,
   });
 }
