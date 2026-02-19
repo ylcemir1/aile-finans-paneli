@@ -62,9 +62,10 @@ export function LoanFormModal({
       ) : (
         <button
           onClick={() => setOpen(true)}
-          className="text-primary text-sm font-semibold"
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200"
         >
-          + Kredi Ekle
+          <span className="material-symbols-outlined text-lg">add</span>
+          Kredi Ekle
         </button>
       )}
 
