@@ -60,8 +60,10 @@ async function getAuthUser() {
 export async function getMyFamily() {
   try {
     const { supabase, user } = await getAuthUser();
+    const admin = createAdminClient();
 
-    const { data: membership } = await supabase
+    // Admin client bypasses RLS - ensures user always sees their family when they're a member
+    const { data: membership } = await admin
       .from("family_members")
       .select(
         "family_id, role, can_view_finance, can_create_finance, can_edit_finance, can_delete_finance, can_manage_members, can_manage_invitations, can_assign_permissions, families(id, name, created_by, created_at)"
@@ -77,14 +79,14 @@ export async function getMyFamily() {
       ? membership.families[0]
       : membership.families;
 
-    const { data: members } = await supabase
+    const { data: members } = await admin
       .from("family_members")
       .select(
         "id, user_id, role, joined_at, can_view_finance, can_create_finance, can_edit_finance, can_delete_finance, can_manage_members, can_manage_invitations, can_assign_permissions, profiles:profiles(id, full_name)"
       )
       .eq("family_id", family.id);
 
-    const { data: invitations } = await supabase
+    const { data: invitations } = await admin
       .from("family_invitations")
       .select("*")
       .eq("family_id", family.id);
