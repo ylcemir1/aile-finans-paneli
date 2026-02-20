@@ -2,7 +2,6 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { formatCurrency } from "@/lib/utils/currency";
-import { formatDate } from "@/lib/utils/date";
 import { CreditCardForm } from "@/components/credit-cards/CreditCardForm";
 import { CCInstallmentForm } from "@/components/credit-cards/CCInstallmentForm";
 import { CCInstallmentItem } from "@/components/credit-cards/CCInstallmentItem";
@@ -67,6 +66,7 @@ export default async function CreditCardDetailPage({
           Kart Detayi
         </h1>
         <CreditCardForm
+          defaultScope={card.family_id ? "family" : "personal"}
           card={card}
           trigger={
             <button className="size-10 rounded-full bg-primary/10 flex items-center justify-center text-primary hover:bg-primary/20 transition-colors">

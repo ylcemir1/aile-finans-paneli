@@ -9,6 +9,7 @@ interface Invitation {
   family_name: string;
   invited_by_name: string;
   created_at: string;
+  expires_at: string | null;
 }
 
 interface PendingInvitationsProps {
@@ -53,6 +54,12 @@ export function PendingInvitations({ invitations }: PendingInvitationsProps) {
             </p>
             <p className="text-xs text-slate-500">
               {inv.invited_by_name} tarafindan davet edildiniz
+            </p>
+            <p className="text-[11px] text-amber-700">
+              Son tarih:{" "}
+              {inv.expires_at
+                ? new Date(inv.expires_at).toLocaleDateString("tr-TR")
+                : "-"}
             </p>
           </div>
           <div className="flex gap-2 shrink-0">

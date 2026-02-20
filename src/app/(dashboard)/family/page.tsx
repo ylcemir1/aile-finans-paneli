@@ -2,10 +2,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getMyFamily, getPendingInvitationsForUser } from "@/actions/family";
 import { CreateFamilyForm } from "@/components/family/CreateFamilyForm";
-import { FamilyMembers } from "@/components/family/FamilyMembers";
-import { InviteMemberForm } from "@/components/family/InviteMemberForm";
 import { PendingInvitations } from "@/components/family/PendingInvitations";
-import { FamilyLeaveButton } from "@/components/family/FamilyLeaveButton";
+import { FamilyManagementTabs } from "@/components/family/FamilyManagementTabs";
 
 export default async function FamilyPage() {
   const supabase = await createClient();
@@ -84,61 +82,13 @@ export default async function FamilyPage() {
               </span>
             </div>
 
-            {/* Invite form (admin only) */}
-            {familyData.myRole === "admin" && (
-              <div className="mb-6 relative">
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                  Uye Davet Et
-                </label>
-                <InviteMemberForm />
-              </div>
-            )}
-
-            {/* Pending invitations sent */}
-            {familyData.pendingInvitations.length > 0 && (
-              <div className="mb-6">
-                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                  Gonderilen Davetler
-                </h3>
-                <div className="space-y-2">
-                  {familyData.pendingInvitations.map((inv) => (
-                    <div
-                      key={inv.id}
-                      className="flex items-center justify-between p-2.5 rounded-lg bg-amber-50 border border-amber-100"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="material-symbols-outlined text-amber-500 text-base">
-                          hourglass_top
-                        </span>
-                        <span className="text-sm text-slate-700">
-                          {inv.invited_email}
-                        </span>
-                      </div>
-                      <span className="text-[10px] font-bold text-amber-600 uppercase">
-                        Bekliyor
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Members list */}
-            <div>
-              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                Uyeler
-              </h3>
-              <FamilyMembers
-                members={familyData.members}
-                myRole={familyData.myRole}
-                currentUserId={user.id}
-              />
-            </div>
-
-            {/* Leave family */}
-            <div className="mt-6 pt-4 border-t border-slate-100">
-              <FamilyLeaveButton myRole={familyData.myRole} />
-            </div>
+            <FamilyManagementTabs
+              members={familyData.members}
+              invitations={familyData.invitations}
+              myRole={familyData.myRole}
+              myPermissions={familyData.myPermissions}
+              currentUserId={user.id}
+            />
           </div>
         </>
       )}

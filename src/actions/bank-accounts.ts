@@ -4,6 +4,12 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { ActionResult } from "@/types";
 import { bankAccountSchema, getFirstError, parseFormData } from "@/lib/validations";
+import {
+  getUserRole,
+  getUserFamilyMembership,
+  canAccessFinanceEntity,
+  hasFamilyPermission,
+} from "@/lib/auth/family-permissions";
 
 export async function createBankAccount(
   formData: FormData
@@ -23,11 +29,24 @@ export async function createBankAccount(
     return { success: false, error: getFirstError(parsed.error) };
   }
 
-  const { data: membership } = await supabase
-    .from("family_members")
-    .select("family_id")
-    .eq("user_id", user.id)
-    .single();
+  const scope = String(formData.get("scope") ?? "personal");
+  const membership = await getUserFamilyMembership(supabase, user.id);
+  const targetFamilyId = scope === "family" ? membership?.family_id ?? null : null;
+
+  if (scope === "family" && !targetFamilyId) {
+    return { success: false, error: "Aile kapsaminda kayit icin bir aileye uye olmalisiniz" };
+  }
+  if (targetFamilyId) {
+    const canCreate = await hasFamilyPermission(
+      supabase,
+      user.id,
+      targetFamilyId,
+      "create_finance"
+    );
+    if (!canCreate) {
+      return { success: false, error: "Aile verisi olusturma yetkiniz yok" };
+    }
+  }
 
   const { error } = await supabase
     .from("bank_accounts")
@@ -40,7 +59,7 @@ export async function createBankAccount(
       account_type: parsed.data.account_type ?? "vadesiz",
       currency: parsed.data.currency ?? "TRY",
       account_number: parsed.data.account_number ?? "",
-      family_id: membership?.family_id ?? null,
+      family_id: targetFamilyId,
     });
 
   if (error) return { success: false, error: error.message };
@@ -70,25 +89,16 @@ export async function updateBankAccount(
 
   if (!account) return { success: false, error: "Hesap bulunamadi" };
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
+  const isAdmin = (await getUserRole(supabase, user.id)) === "admin";
+  const canAccess = await canAccessFinanceEntity(supabase, {
+    userId: user.id,
+    isAdmin,
+    ownerId: account.owner_id,
+    familyId: account.family_id,
+    permission: "edit_finance",
+  });
 
-  const isAdmin = profile?.role === "admin";
-  let isSameFamily = false;
-  if (account.family_id) {
-    const { data: myMembership } = await supabase
-      .from("family_members")
-      .select("family_id")
-      .eq("user_id", user.id)
-      .eq("family_id", account.family_id)
-      .single();
-    isSameFamily = !!myMembership;
-  }
-
-  if (account.owner_id !== user.id && !isAdmin && !isSameFamily) {
+  if (!canAccess) {
     return { success: false, error: "Bu hesabi duzenleme yetkiniz yok" };
   }
 
@@ -135,25 +145,16 @@ export async function deleteBankAccount(id: string): Promise<ActionResult> {
 
   if (!account) return { success: false, error: "Hesap bulunamadi" };
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
+  const isAdmin = (await getUserRole(supabase, user.id)) === "admin";
+  const canAccess = await canAccessFinanceEntity(supabase, {
+    userId: user.id,
+    isAdmin,
+    ownerId: account.owner_id,
+    familyId: account.family_id,
+    permission: "delete_finance",
+  });
 
-  const isAdmin = profile?.role === "admin";
-  let isSameFamily = false;
-  if (account.family_id) {
-    const { data: myMembership } = await supabase
-      .from("family_members")
-      .select("family_id")
-      .eq("user_id", user.id)
-      .eq("family_id", account.family_id)
-      .single();
-    isSameFamily = !!myMembership;
-  }
-
-  if (account.owner_id !== user.id && !isAdmin && !isSameFamily) {
+  if (!canAccess) {
     return { success: false, error: "Bu hesabi silme yetkiniz yok" };
   }
 

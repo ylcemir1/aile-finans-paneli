@@ -33,7 +33,7 @@ export default async function CreditCardsPage({
   if (isFamily) {
     cardsQuery = cardsQuery.eq("family_id", familyId);
   } else {
-    cardsQuery = cardsQuery.eq("owner_id", user.id);
+    cardsQuery = cardsQuery.eq("owner_id", user.id).is("family_id", null);
   }
 
   const { data: cards } = await cardsQuery;
@@ -59,7 +59,7 @@ export default async function CreditCardsPage({
             {isFamily ? "Aile gorunumu" : "Kisisel gorunum"}
           </p>
         </div>
-        <CreditCardForm />
+        <CreditCardForm defaultScope={isFamily ? "family" : "personal"} />
       </div>
       <ViewScopeToggle hasFamily={!!familyId} />
 

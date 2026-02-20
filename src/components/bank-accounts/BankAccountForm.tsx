@@ -12,12 +12,14 @@ interface BankAccountFormProps {
   profiles: { id: string; full_name: string }[];
   currentUserId: string;
   isAdmin: boolean;
+  defaultScope: "personal" | "family";
 }
 
 export function BankAccountForm({
   profiles,
   currentUserId,
   isAdmin,
+  defaultScope,
 }: BankAccountFormProps) {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -46,6 +48,7 @@ export function BankAccountForm({
 
       <Modal open={open} onClose={() => setOpen(false)} title="Hesap Ekle">
         <form action={handleSubmit} className="space-y-4">
+          <input type="hidden" name="scope" value={defaultScope} />
           {error && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
               <p className="text-sm text-red-700">{error}</p>

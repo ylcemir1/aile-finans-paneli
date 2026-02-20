@@ -3,6 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { ActionResult } from "@/types";
+import {
+  getUserRole,
+  canAccessFinanceEntity,
+} from "@/lib/auth/family-permissions";
 
 async function checkInstallmentAccess(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -26,30 +30,17 @@ async function checkInstallmentAccess(
 
   if (!loan) return { allowed: false, error: "Kredi bulunamadi" };
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", userId)
-    .single();
+  const isAdmin = (await getUserRole(supabase, userId)) === "admin";
+  const canAccess = await canAccessFinanceEntity(supabase, {
+    userId,
+    isAdmin,
+    ownerId: loan.payer_id,
+    creatorId: loan.created_by,
+    familyId: loan.family_id,
+    permission: "edit_finance",
+  });
 
-  const isAdmin = profile?.role === "admin";
-  let isSameFamily = false;
-  if (loan.family_id) {
-    const { data: myMembership } = await supabase
-      .from("family_members")
-      .select("family_id")
-      .eq("user_id", userId)
-      .eq("family_id", loan.family_id)
-      .single();
-    isSameFamily = !!myMembership;
-  }
-
-  if (
-    loan.payer_id !== userId &&
-    loan.created_by !== userId &&
-    !isAdmin &&
-    !isSameFamily
-  ) {
+  if (!canAccess) {
     return { allowed: false, error: "Bu taksiti guncelleme yetkiniz yok" };
   }
 

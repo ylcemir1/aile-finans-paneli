@@ -150,6 +150,7 @@ export function LoanCard({ loan, profiles, currentUserId, isAdmin }: LoanCardPro
           profiles={profiles}
           currentUserId={currentUserId}
           isAdmin={isAdmin}
+          defaultScope={loan.family_id ? "family" : "personal"}
           loan={loan}
           trigger={
             <button className="flex-1 flex items-center justify-center gap-1 text-xs text-primary font-medium py-1.5 rounded-lg hover:bg-primary/5 transition-colors">

@@ -34,6 +34,13 @@ export default async function AdminUsersPage() {
 
   return (
     <div className="space-y-6">
+      <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+        <p className="text-sm text-blue-800">
+          Bu sayfa yalnizca uygulama kullanici yonetimi icindir. Aile uye/izin
+          yonetimi icin <span className="font-semibold">Ailem</span> sayfasini
+          kullanin.
+        </p>
+      </div>
       <UserList users={result.data} />
     </div>
   );

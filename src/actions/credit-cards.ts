@@ -9,6 +9,12 @@ import {
   getFirstError,
   parseFormData,
 } from "@/lib/validations";
+import {
+  getUserRole,
+  getUserFamilyMembership,
+  canAccessFinanceEntity,
+  hasFamilyPermission,
+} from "@/lib/auth/family-permissions";
 
 export async function createCreditCard(
   formData: FormData
@@ -34,11 +40,24 @@ export async function createCreditCard(
     return { success: false, error: getFirstError(parsed.error) };
   }
 
-  const { data: membership } = await supabase
-    .from("family_members")
-    .select("family_id")
-    .eq("user_id", user.id)
-    .single();
+  const scope = String(formData.get("scope") ?? "personal");
+  const membership = await getUserFamilyMembership(supabase, user.id);
+  const targetFamilyId = scope === "family" ? membership?.family_id ?? null : null;
+
+  if (scope === "family" && !targetFamilyId) {
+    return { success: false, error: "Aile kapsaminda kayit icin bir aileye uye olmalisiniz" };
+  }
+  if (targetFamilyId) {
+    const canCreate = await hasFamilyPermission(
+      supabase,
+      user.id,
+      targetFamilyId,
+      "create_finance"
+    );
+    if (!canCreate) {
+      return { success: false, error: "Aile verisi olusturma yetkiniz yok" };
+    }
+  }
 
   const { data: card, error } = await supabase
     .from("credit_cards")
@@ -54,7 +73,7 @@ export async function createCreditCard(
       notes: parsed.data.notes ?? "",
       owner_id: parsed.data.owner_id ?? user.id,
       created_by: user.id,
-      family_id: membership?.family_id ?? null,
+      family_id: targetFamilyId,
     })
     .select("id")
     .single();
@@ -89,30 +108,17 @@ export async function updateCreditCard(
     .single();
   if (!cardAccess) return { success: false, error: "Kart bulunamadi" };
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-  const isAdmin = profile?.role === "admin";
+  const isAdmin = (await getUserRole(supabase, user.id)) === "admin";
+  const canAccess = await canAccessFinanceEntity(supabase, {
+    userId: user.id,
+    isAdmin,
+    ownerId: cardAccess.owner_id,
+    creatorId: cardAccess.created_by,
+    familyId: cardAccess.family_id,
+    permission: "edit_finance",
+  });
 
-  let isSameFamily = false;
-  if (cardAccess.family_id) {
-    const { data: myMembership } = await supabase
-      .from("family_members")
-      .select("family_id")
-      .eq("user_id", user.id)
-      .eq("family_id", cardAccess.family_id)
-      .single();
-    isSameFamily = !!myMembership;
-  }
-
-  if (
-    cardAccess.owner_id !== user.id &&
-    cardAccess.created_by !== user.id &&
-    !isAdmin &&
-    !isSameFamily
-  ) {
+  if (!canAccess) {
     return { success: false, error: "Bu karti duzenleme yetkiniz yok" };
   }
 
@@ -168,30 +174,17 @@ export async function deleteCreditCard(id: string): Promise<ActionResult> {
     .single();
   if (!cardAccess) return { success: false, error: "Kart bulunamadi" };
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-  const isAdmin = profile?.role === "admin";
+  const isAdmin = (await getUserRole(supabase, user.id)) === "admin";
+  const canAccess = await canAccessFinanceEntity(supabase, {
+    userId: user.id,
+    isAdmin,
+    ownerId: cardAccess.owner_id,
+    creatorId: cardAccess.created_by,
+    familyId: cardAccess.family_id,
+    permission: "delete_finance",
+  });
 
-  let isSameFamily = false;
-  if (cardAccess.family_id) {
-    const { data: myMembership } = await supabase
-      .from("family_members")
-      .select("family_id")
-      .eq("user_id", user.id)
-      .eq("family_id", cardAccess.family_id)
-      .single();
-    isSameFamily = !!myMembership;
-  }
-
-  if (
-    cardAccess.owner_id !== user.id &&
-    cardAccess.created_by !== user.id &&
-    !isAdmin &&
-    !isSameFamily
-  ) {
+  if (!canAccess) {
     return { success: false, error: "Bu karti silme yetkiniz yok" };
   }
 

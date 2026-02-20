@@ -11,6 +11,18 @@ export type Family = Database["public"]["Tables"]["families"]["Row"];
 export type FamilyMember = Database["public"]["Tables"]["family_members"]["Row"];
 export type FamilyInvitation =
   Database["public"]["Tables"]["family_invitations"]["Row"];
+export type FamilyAuditLog =
+  Database["public"]["Tables"]["family_audit_logs"]["Row"];
+
+export type FamilyPermission = {
+  can_view_finance: boolean;
+  can_create_finance: boolean;
+  can_edit_finance: boolean;
+  can_delete_finance: boolean;
+  can_manage_members: boolean;
+  can_manage_invitations: boolean;
+  can_assign_permissions: boolean;
+};
 
 export type InsertBankAccount =
   Database["public"]["Tables"]["bank_accounts"]["Insert"];

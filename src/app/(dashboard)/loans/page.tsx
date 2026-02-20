@@ -48,7 +48,7 @@ export default async function LoansPage({
   if (isFamily) {
     loansQuery = loansQuery.eq("family_id", familyId);
   } else {
-    loansQuery = loansQuery.eq("payer_id", user.id);
+    loansQuery = loansQuery.eq("payer_id", user.id).is("family_id", null);
   }
 
   const [
@@ -129,6 +129,7 @@ export default async function LoansPage({
           profiles={profiles ?? []}
           currentUserId={user.id}
           isAdmin={isAdmin}
+          defaultScope={isFamily ? "family" : "personal"}
         />
       </div>
       <ViewScopeToggle hasFamily={!!familyId} />

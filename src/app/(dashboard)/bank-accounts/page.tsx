@@ -35,7 +35,7 @@ export default async function BankAccountsPage({
   if (isFamily) {
     accountsQuery = accountsQuery.eq("family_id", familyId);
   } else {
-    accountsQuery = accountsQuery.eq("owner_id", user.id);
+    accountsQuery = accountsQuery.eq("owner_id", user.id).is("family_id", null);
   }
 
   const [{ data: accounts }, { data: profiles }, { data: currentProfile }] =
@@ -94,6 +94,7 @@ export default async function BankAccountsPage({
           profiles={profiles ?? []}
           currentUserId={user.id}
           isAdmin={isAdmin}
+          defaultScope={isFamily ? "family" : "personal"}
         />
       </div>
       <ViewScopeToggle hasFamily={!!familyId} />

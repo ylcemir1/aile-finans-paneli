@@ -310,6 +310,13 @@ export type Database = {
           user_id: string;
           role: "admin" | "member";
           joined_at: string;
+          can_view_finance: boolean;
+          can_create_finance: boolean;
+          can_edit_finance: boolean;
+          can_delete_finance: boolean;
+          can_manage_members: boolean;
+          can_manage_invitations: boolean;
+          can_assign_permissions: boolean;
         };
         Insert: {
           id?: string;
@@ -317,6 +324,13 @@ export type Database = {
           user_id: string;
           role?: "admin" | "member";
           joined_at?: string;
+          can_view_finance?: boolean;
+          can_create_finance?: boolean;
+          can_edit_finance?: boolean;
+          can_delete_finance?: boolean;
+          can_manage_members?: boolean;
+          can_manage_invitations?: boolean;
+          can_assign_permissions?: boolean;
         };
         Update: {
           id?: string;
@@ -324,6 +338,13 @@ export type Database = {
           user_id?: string;
           role?: "admin" | "member";
           joined_at?: string;
+          can_view_finance?: boolean;
+          can_create_finance?: boolean;
+          can_edit_finance?: boolean;
+          can_delete_finance?: boolean;
+          can_manage_members?: boolean;
+          can_manage_invitations?: boolean;
+          can_assign_permissions?: boolean;
         };
         Relationships: [
           {
@@ -348,7 +369,12 @@ export type Database = {
           family_id: string;
           invited_by: string;
           invited_email: string;
-          status: "pending" | "accepted" | "rejected";
+          invited_user_id: string | null;
+          status: "pending" | "accepted" | "rejected" | "canceled" | "expired";
+          expires_at: string | null;
+          accepted_at: string | null;
+          rejected_at: string | null;
+          canceled_at: string | null;
           created_at: string;
         };
         Insert: {
@@ -356,7 +382,12 @@ export type Database = {
           family_id: string;
           invited_by: string;
           invited_email: string;
-          status?: "pending" | "accepted" | "rejected";
+          invited_user_id?: string | null;
+          status?: "pending" | "accepted" | "rejected" | "canceled" | "expired";
+          expires_at?: string | null;
+          accepted_at?: string | null;
+          rejected_at?: string | null;
+          canceled_at?: string | null;
           created_at?: string;
         };
         Update: {
@@ -364,7 +395,12 @@ export type Database = {
           family_id?: string;
           invited_by?: string;
           invited_email?: string;
-          status?: "pending" | "accepted" | "rejected";
+          invited_user_id?: string | null;
+          status?: "pending" | "accepted" | "rejected" | "canceled" | "expired";
+          expires_at?: string | null;
+          accepted_at?: string | null;
+          rejected_at?: string | null;
+          canceled_at?: string | null;
           created_at?: string;
         };
         Relationships: [
@@ -380,6 +416,61 @@ export type Database = {
             columns: ["invited_by"];
             isOneToOne: false;
             referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "family_invitations_invited_user_id_fkey";
+            columns: ["invited_user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      family_audit_logs: {
+        Row: {
+          id: string;
+          family_id: string;
+          actor_user_id: string | null;
+          action: string;
+          target_type: string | null;
+          target_id: string | null;
+          metadata: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          family_id: string;
+          actor_user_id?: string | null;
+          action: string;
+          target_type?: string | null;
+          target_id?: string | null;
+          metadata?: Json;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          family_id?: string;
+          actor_user_id?: string | null;
+          action?: string;
+          target_type?: string | null;
+          target_id?: string | null;
+          metadata?: Json;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "family_audit_logs_actor_user_id_fkey";
+            columns: ["actor_user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "family_audit_logs_family_id_fkey";
+            columns: ["family_id"];
+            isOneToOne: false;
+            referencedRelation: "families";
             referencedColumns: ["id"];
           },
         ];
@@ -452,6 +543,25 @@ export type Database = {
       get_my_family_ids: {
         Args: Record<PropertyKey, never>;
         Returns: string[];
+      };
+      has_family_permission: {
+        Args: {
+          p_user_id: string;
+          p_family_id: string;
+          p_permission: string;
+        };
+        Returns: boolean;
+      };
+      add_family_audit_log: {
+        Args: {
+          p_family_id: string;
+          p_actor_user_id: string;
+          p_action: string;
+          p_target_type?: string;
+          p_target_id?: string;
+          p_metadata?: Json;
+        };
+        Returns: undefined;
       };
       is_admin: {
         Args: Record<PropertyKey, never>;

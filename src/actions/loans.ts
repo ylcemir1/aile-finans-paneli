@@ -10,6 +10,12 @@ import {
   parseFormData,
 } from "@/lib/validations";
 import { generateInstallmentSchedule } from "@/lib/utils/loan-calculations";
+import {
+  getUserRole,
+  getUserFamilyMembership,
+  canAccessFinanceEntity,
+  hasFamilyPermission,
+} from "@/lib/auth/family-permissions";
 
 export async function createLoan(
   formData: FormData
@@ -46,11 +52,24 @@ export async function createLoan(
     : (parsed.data.paid_amount ?? 0);
   const remainingBalance = parsed.data.total_amount - paidAmount;
 
-  const { data: membership } = await supabase
-    .from("family_members")
-    .select("family_id")
-    .eq("user_id", user.id)
-    .single();
+  const scope = String(formData.get("scope") ?? "personal");
+  const membership = await getUserFamilyMembership(supabase, user.id);
+  const targetFamilyId = scope === "family" ? membership?.family_id ?? null : null;
+
+  if (scope === "family" && !targetFamilyId) {
+    return { success: false, error: "Aile kapsaminda kayit icin bir aileye uye olmalisiniz" };
+  }
+  if (targetFamilyId) {
+    const canCreate = await hasFamilyPermission(
+      supabase,
+      user.id,
+      targetFamilyId,
+      "create_finance"
+    );
+    if (!canCreate) {
+      return { success: false, error: "Aile verisi olusturma yetkiniz yok" };
+    }
+  }
 
   const { data: loan, error: loanError } = await supabase
     .from("loans")
@@ -72,7 +91,7 @@ export async function createLoan(
       statement_day: parsed.data.statement_day ?? null,
       due_day: parsed.data.due_day ?? null,
       notes: parsed.data.notes ?? "",
-      family_id: membership?.family_id ?? null,
+      family_id: targetFamilyId,
     })
     .select("id")
     .single();
@@ -126,31 +145,22 @@ export async function updateLoan(
   // Ownership check
   const { data: existingLoan } = await supabase
     .from("loans")
-    .select("created_by, paid_amount, total_amount, family_id")
+    .select("payer_id, created_by, paid_amount, total_amount, family_id")
     .eq("id", id)
     .single();
 
   if (!existingLoan) return { success: false, error: "Kredi bulunamadi" };
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-
-  const isAdmin = profile?.role === "admin";
-  let isSameFamily = false;
-  if (existingLoan.family_id) {
-    const { data: myMembership } = await supabase
-      .from("family_members")
-      .select("family_id")
-      .eq("user_id", user.id)
-      .eq("family_id", existingLoan.family_id)
-      .single();
-    isSameFamily = !!myMembership;
-  }
-
-  if (existingLoan.created_by !== user.id && !isAdmin && !isSameFamily) {
+  const isAdmin = (await getUserRole(supabase, user.id)) === "admin";
+  const canAccess = await canAccessFinanceEntity(supabase, {
+    userId: user.id,
+    isAdmin,
+    ownerId: existingLoan.payer_id,
+    creatorId: existingLoan.created_by,
+    familyId: existingLoan.family_id,
+    permission: "edit_finance",
+  });
+  if (!canAccess) {
     return { success: false, error: "Bu krediyi duzenleme yetkiniz yok" };
   }
 
@@ -258,31 +268,22 @@ export async function closeLoan(id: string): Promise<ActionResult> {
   // Ownership check
   const { data: loan } = await supabase
     .from("loans")
-    .select("created_by, family_id")
+    .select("payer_id, created_by, family_id")
     .eq("id", id)
     .single();
 
   if (!loan) return { success: false, error: "Kredi bulunamadi" };
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-
-  const isAdmin = profile?.role === "admin";
-  let isSameFamily = false;
-  if (loan.family_id) {
-    const { data: myMembership } = await supabase
-      .from("family_members")
-      .select("family_id")
-      .eq("user_id", user.id)
-      .eq("family_id", loan.family_id)
-      .single();
-    isSameFamily = !!myMembership;
-  }
-
-  if (loan.created_by !== user.id && !isAdmin && !isSameFamily) {
+  const isAdmin = (await getUserRole(supabase, user.id)) === "admin";
+  const canAccess = await canAccessFinanceEntity(supabase, {
+    userId: user.id,
+    isAdmin,
+    ownerId: loan.payer_id,
+    creatorId: loan.created_by,
+    familyId: loan.family_id,
+    permission: "edit_finance",
+  });
+  if (!canAccess) {
     return { success: false, error: "Bu krediyi kapatma yetkiniz yok" };
   }
 
@@ -313,31 +314,22 @@ export async function deleteLoan(id: string): Promise<ActionResult> {
   // Ownership check
   const { data: loan } = await supabase
     .from("loans")
-    .select("created_by, family_id")
+    .select("payer_id, created_by, family_id")
     .eq("id", id)
     .single();
 
   if (!loan) return { success: false, error: "Kredi bulunamadi" };
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-
-  const isAdmin = profile?.role === "admin";
-  let isSameFamily = false;
-  if (loan.family_id) {
-    const { data: myMembership } = await supabase
-      .from("family_members")
-      .select("family_id")
-      .eq("user_id", user.id)
-      .eq("family_id", loan.family_id)
-      .single();
-    isSameFamily = !!myMembership;
-  }
-
-  if (loan.created_by !== user.id && !isAdmin && !isSameFamily) {
+  const isAdmin = (await getUserRole(supabase, user.id)) === "admin";
+  const canAccess = await canAccessFinanceEntity(supabase, {
+    userId: user.id,
+    isAdmin,
+    ownerId: loan.payer_id,
+    creatorId: loan.created_by,
+    familyId: loan.family_id,
+    permission: "delete_finance",
+  });
+  if (!canAccess) {
     return { success: false, error: "Bu krediyi silme yetkiniz yok" };
   }
 

@@ -42,9 +42,9 @@ export default async function DashboardPage({
     .from("loans")
     .select("monthly_payment, remaining_balance, loan_type, status")
     .eq("status", "active");
-  let installmentsQuery = supabase
+  const installmentsQuery = supabase
     .from("installments")
-    .select("*, loan:loans(bank_name, loan_type)")
+    .select("*, loan:loans(bank_name, loan_type, family_id, payer_id)")
     .eq("is_paid", false)
     .gte("due_date", new Date().toISOString().split("T")[0])
     .order("due_date", { ascending: true });
@@ -58,9 +58,9 @@ export default async function DashboardPage({
     loansQuery = loansQuery.eq("family_id", familyId);
     creditCardsQuery = creditCardsQuery.eq("family_id", familyId);
   } else if (userId) {
-    accountsQuery = accountsQuery.or(`family_id.is.null,owner_id.eq.${userId}`).eq("owner_id", userId);
-    loansQuery = loansQuery.or(`family_id.is.null,payer_id.eq.${userId}`).eq("payer_id", userId);
-    creditCardsQuery = creditCardsQuery.or(`family_id.is.null,owner_id.eq.${userId}`).eq("owner_id", userId);
+    accountsQuery = accountsQuery.eq("owner_id", userId).is("family_id", null);
+    loansQuery = loansQuery.eq("payer_id", userId).is("family_id", null);
+    creditCardsQuery = creditCardsQuery.eq("owner_id", userId).is("family_id", null);
   }
 
   const [
@@ -78,7 +78,7 @@ export default async function DashboardPage({
   // Also get recently paid installments for the list
   const { data: recentPaid } = await supabase
     .from("installments")
-    .select("*, loan:loans(bank_name, loan_type)")
+    .select("*, loan:loans(bank_name, loan_type, family_id, payer_id)")
     .eq("is_paid", true)
     .order("paid_at", { ascending: false })
     .limit(3);
@@ -86,7 +86,7 @@ export default async function DashboardPage({
   // Also get overdue installments (past due date, not paid)
   const { data: overdueInstallments } = await supabase
     .from("installments")
-    .select("*, loan:loans(bank_name, loan_type)")
+    .select("*, loan:loans(bank_name, loan_type, family_id, payer_id)")
     .eq("is_paid", false)
     .lt("due_date", new Date().toISOString().split("T")[0])
     .order("due_date", { ascending: true });
@@ -98,10 +98,18 @@ export default async function DashboardPage({
 
   const { data: paidInstallments } = await supabase
     .from("installments")
-    .select("due_date, amount")
+    .select("due_date, amount, loan:loans(family_id, payer_id)")
     .eq("is_paid", true)
     .gte("due_date", sixMonthsAgoStr)
     .order("due_date", { ascending: true });
+
+  const installmentInScope = (
+    inst: { loan?: { family_id?: string | null; payer_id?: string | null } | null } | null
+  ) => {
+    if (!inst?.loan) return false;
+    if (isFamily) return inst.loan.family_id === familyId;
+    return !inst.loan.family_id && inst.loan.payer_id === userId;
+  };
 
   // Group by month
   const monthlyMap = new Map<string, number>();
@@ -111,7 +119,7 @@ export default async function DashboardPage({
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
     monthlyMap.set(key, 0);
   }
-  (paidInstallments ?? []).forEach((inst) => {
+  (paidInstallments ?? []).filter(installmentInScope).forEach((inst) => {
     const key = inst.due_date.slice(0, 7);
     if (monthlyMap.has(key)) {
       monthlyMap.set(key, (monthlyMap.get(key) ?? 0) + Number(inst.amount));
@@ -152,20 +160,22 @@ export default async function DashboardPage({
     amount,
   }));
 
-  const upcomingIn7Days = (installments ?? []).filter((i) =>
-    isWithinDays(i.due_date, 7)
-  );
+  const scopedInstallments = (installments ?? []).filter(installmentInScope);
+  const scopedOverdueInstallments = (overdueInstallments ?? []).filter(installmentInScope);
+  const scopedRecentPaid = (recentPaid ?? []).filter(installmentInScope);
+
+  const upcomingIn7Days = scopedInstallments.filter((i) => isWithinDays(i.due_date, 7));
 
   const nearestDueDate =
-    installments && installments.length > 0 ? installments[0].due_date : null;
+    scopedInstallments.length > 0 ? scopedInstallments[0].due_date : null;
 
   const nearestDays = nearestDueDate ? daysUntil(nearestDueDate) : null;
 
   // Combine for display list: overdue first, then upcoming, then recent paid
   const displayInstallments = [
-    ...(overdueInstallments ?? []),
+    ...scopedOverdueInstallments,
     ...upcomingIn7Days,
-    ...(recentPaid ?? []),
+    ...scopedRecentPaid,
   ].slice(0, 8);
 
   return (
@@ -242,9 +252,9 @@ export default async function DashboardPage({
           <h2 className="text-lg font-extrabold text-slate-900">
             Acil Taksitler
           </h2>
-          {(overdueInstallments ?? []).length > 0 && (
+          {scopedOverdueInstallments.length > 0 && (
             <span className="text-xs font-bold text-red-500 bg-red-50 px-2 py-1 rounded-lg">
-              {(overdueInstallments ?? []).length} gecikti
+              {scopedOverdueInstallments.length} gecikti
             </span>
           )}
         </div>

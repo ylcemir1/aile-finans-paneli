@@ -9,12 +9,14 @@ import { Button } from "@/components/ui/Button";
 import type { CreditCard } from "@/types";
 
 interface CreditCardFormProps {
+  defaultScope: "personal" | "family";
   card?: CreditCard | null; // If provided, edit mode
   trigger?: React.ReactNode; // Custom trigger element
   onSuccess?: () => void;
 }
 
 export function CreditCardForm({
+  defaultScope,
   card,
   trigger,
   onSuccess,
@@ -64,6 +66,7 @@ export function CreditCardForm({
         title={isEdit ? "Karti Duzenle" : "Yeni Kredi Karti"}
       >
         <form action={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+          {!isEdit && <input type="hidden" name="scope" value={defaultScope} />}
           {error && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
               <p className="text-sm text-red-700">{error}</p>

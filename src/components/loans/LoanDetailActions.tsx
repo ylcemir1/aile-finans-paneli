@@ -48,6 +48,7 @@ export function LoanDetailActions({
         profiles={profiles}
         currentUserId={currentUserId}
         isAdmin={isAdmin}
+        defaultScope={loan.family_id ? "family" : "personal"}
         loan={loan}
         trigger={
           <button className="size-10 rounded-full bg-primary/10 flex items-center justify-center text-primary hover:bg-primary/20 transition-colors">

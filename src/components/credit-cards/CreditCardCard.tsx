@@ -125,6 +125,7 @@ export function CreditCardCard({ card }: CreditCardCardProps) {
       {/* Action buttons */}
       <div className="flex gap-2 pt-1 border-t border-slate-50">
         <CreditCardForm
+          defaultScope={card.family_id ? "family" : "personal"}
           card={card}
           trigger={
             <button className="flex-1 flex items-center justify-center gap-1 text-xs text-primary font-medium py-1.5 rounded-lg hover:bg-primary/5 transition-colors">
