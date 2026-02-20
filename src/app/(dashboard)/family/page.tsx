@@ -40,6 +40,14 @@ export default async function FamilyPage() {
     <div className="space-y-6">
       <h1 className="text-xl font-bold text-slate-900">Ailem</h1>
 
+      {!invitationsResult.success && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+          <p className="text-sm text-red-700">
+            Davetler yuklenirken hata oldu: {invitationsResult.error}
+          </p>
+        </div>
+      )}
+
       {/* Pending invitations for this user */}
       <PendingInvitations invitations={pendingInvitations} />
 
