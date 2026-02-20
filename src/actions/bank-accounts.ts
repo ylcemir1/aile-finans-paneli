@@ -23,6 +23,12 @@ export async function createBankAccount(
     return { success: false, error: getFirstError(parsed.error) };
   }
 
+  const { data: membership } = await supabase
+    .from("family_members")
+    .select("family_id")
+    .eq("user_id", user.id)
+    .single();
+
   const { error } = await supabase
     .from("bank_accounts")
     .insert({
@@ -34,6 +40,7 @@ export async function createBankAccount(
       account_type: parsed.data.account_type ?? "vadesiz",
       currency: parsed.data.currency ?? "TRY",
       account_number: parsed.data.account_number ?? "",
+      family_id: membership?.family_id ?? null,
     });
 
   if (error) return { success: false, error: error.message };
@@ -57,7 +64,7 @@ export async function updateBankAccount(
   // Ownership check
   const { data: account } = await supabase
     .from("bank_accounts")
-    .select("owner_id")
+    .select("owner_id, family_id")
     .eq("id", id)
     .single();
 
@@ -70,7 +77,18 @@ export async function updateBankAccount(
     .single();
 
   const isAdmin = profile?.role === "admin";
-  if (account.owner_id !== user.id && !isAdmin) {
+  let isSameFamily = false;
+  if (account.family_id) {
+    const { data: myMembership } = await supabase
+      .from("family_members")
+      .select("family_id")
+      .eq("user_id", user.id)
+      .eq("family_id", account.family_id)
+      .single();
+    isSameFamily = !!myMembership;
+  }
+
+  if (account.owner_id !== user.id && !isAdmin && !isSameFamily) {
     return { success: false, error: "Bu hesabi duzenleme yetkiniz yok" };
   }
 
@@ -111,7 +129,7 @@ export async function deleteBankAccount(id: string): Promise<ActionResult> {
   // Ownership check
   const { data: account } = await supabase
     .from("bank_accounts")
-    .select("owner_id")
+    .select("owner_id, family_id")
     .eq("id", id)
     .single();
 
@@ -124,7 +142,18 @@ export async function deleteBankAccount(id: string): Promise<ActionResult> {
     .single();
 
   const isAdmin = profile?.role === "admin";
-  if (account.owner_id !== user.id && !isAdmin) {
+  let isSameFamily = false;
+  if (account.family_id) {
+    const { data: myMembership } = await supabase
+      .from("family_members")
+      .select("family_id")
+      .eq("user_id", user.id)
+      .eq("family_id", account.family_id)
+      .single();
+    isSameFamily = !!myMembership;
+  }
+
+  if (account.owner_id !== user.id && !isAdmin && !isSameFamily) {
     return { success: false, error: "Bu hesabi silme yetkiniz yok" };
   }
 

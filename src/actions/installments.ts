@@ -20,7 +20,7 @@ async function checkInstallmentAccess(
 
   const { data: loan } = await supabase
     .from("loans")
-    .select("payer_id, created_by")
+    .select("payer_id, created_by, family_id")
     .eq("id", installment.loan_id)
     .single();
 
@@ -33,7 +33,23 @@ async function checkInstallmentAccess(
     .single();
 
   const isAdmin = profile?.role === "admin";
-  if (loan.payer_id !== userId && loan.created_by !== userId && !isAdmin) {
+  let isSameFamily = false;
+  if (loan.family_id) {
+    const { data: myMembership } = await supabase
+      .from("family_members")
+      .select("family_id")
+      .eq("user_id", userId)
+      .eq("family_id", loan.family_id)
+      .single();
+    isSameFamily = !!myMembership;
+  }
+
+  if (
+    loan.payer_id !== userId &&
+    loan.created_by !== userId &&
+    !isAdmin &&
+    !isSameFamily
+  ) {
     return { allowed: false, error: "Bu taksiti guncelleme yetkiniz yok" };
   }
 

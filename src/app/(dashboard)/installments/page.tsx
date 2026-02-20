@@ -5,6 +5,8 @@ import { InstallmentCalendar } from "@/components/installments/InstallmentCalend
 import { cn } from "@/lib/utils/cn";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { buildLoanColorMap } from "@/lib/utils/loan-colors";
+import { ViewScopeToggle } from "@/components/ui/ViewScopeToggle";
+import { getUserFamilyId } from "@/lib/utils/family-scope";
 
 const filters = [
   { label: "Tumu", value: "" },
@@ -16,21 +18,35 @@ const filters = [
 export default async function InstallmentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ filter?: string; view?: string }>;
+  searchParams: Promise<{ filter?: string; view?: string; scope?: string }>;
 }) {
   const params = await searchParams;
   const filter = params.filter ?? "";
   const view = params.view ?? "list";
+  const scope = params.scope ?? "personal";
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const familyId = user ? await getUserFamilyId(supabase, user.id) : null;
+  const isFamily = scope === "family" && !!familyId;
 
   const { data: allInstallments } = await supabase
     .from("installments")
-    .select("*, loan:loans(id, bank_name, loan_type)")
+    .select("*, loan:loans(id, bank_name, loan_type, payer_id, created_by, family_id)")
     .order("due_date", { ascending: true });
 
-  const loanColorMap = buildLoanColorMap(allInstallments ?? []);
+  const scopedInstallments = (allInstallments ?? []).filter((inst) => {
+    if (!inst.loan) return false;
+    if (isFamily) return inst.loan.family_id === familyId;
+    if (!user) return true;
+    return !inst.loan.family_id && inst.loan.payer_id === user.id;
+  });
 
-  let filteredInstallments = allInstallments ?? [];
+  const loanColorMap = buildLoanColorMap(scopedInstallments);
+
+  let filteredInstallments = scopedInstallments;
 
   if (view === "list") {
     if (filter === "unpaid") {
@@ -53,10 +69,15 @@ export default async function InstallmentsPage({
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-slate-900">Taksitler</h1>
+        <div>
+          <h1 className="text-xl font-bold text-slate-900">Taksitler</h1>
+          <p className="text-xs text-slate-500 mt-0.5">
+            {isFamily ? "Aile gorunumu" : "Kisisel gorunum"}
+          </p>
+        </div>
         <div className="flex items-center bg-white rounded-lg border border-slate-200 p-0.5">
           <Link
-            href={`/installments?view=list${filter ? `&filter=${filter}` : ""}`}
+            href={`/installments?view=list&scope=${scope}${filter ? `&filter=${filter}` : ""}`}
             className={cn(
               "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors",
               view === "list"
@@ -68,7 +89,7 @@ export default async function InstallmentsPage({
             Liste
           </Link>
           <Link
-            href="/installments?view=calendar"
+            href={`/installments?view=calendar&scope=${scope}`}
             className={cn(
               "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors",
               view === "calendar"
@@ -81,9 +102,10 @@ export default async function InstallmentsPage({
           </Link>
         </div>
       </div>
+      <ViewScopeToggle hasFamily={!!familyId} />
 
       {view === "calendar" ? (
-        <InstallmentCalendar installments={allInstallments ?? []} loanColorMap={loanColorMap} />
+        <InstallmentCalendar installments={scopedInstallments} loanColorMap={loanColorMap} />
       ) : (
         <>
           {/* Filter chips */}
@@ -91,7 +113,11 @@ export default async function InstallmentsPage({
             {filters.map(({ label, value }) => (
               <Link
                 key={value}
-                href={value ? `/installments?view=list&filter=${value}` : "/installments?view=list"}
+                href={
+                  value
+                    ? `/installments?view=list&scope=${scope}&filter=${value}`
+                    : `/installments?view=list&scope=${scope}`
+                }
                 className={cn(
                   "flex items-center px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-colors",
                   filter === value

@@ -34,6 +34,12 @@ export async function createCreditCard(
     return { success: false, error: getFirstError(parsed.error) };
   }
 
+  const { data: membership } = await supabase
+    .from("family_members")
+    .select("family_id")
+    .eq("user_id", user.id)
+    .single();
+
   const { data: card, error } = await supabase
     .from("credit_cards")
     .insert({
@@ -48,6 +54,7 @@ export async function createCreditCard(
       notes: parsed.data.notes ?? "",
       owner_id: parsed.data.owner_id ?? user.id,
       created_by: user.id,
+      family_id: membership?.family_id ?? null,
     })
     .select("id")
     .single();
@@ -74,6 +81,40 @@ export async function updateCreditCard(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { success: false, error: "Oturum bulunamadi" };
+
+  const { data: cardAccess } = await supabase
+    .from("credit_cards")
+    .select("owner_id, created_by, family_id")
+    .eq("id", id)
+    .single();
+  if (!cardAccess) return { success: false, error: "Kart bulunamadi" };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+  const isAdmin = profile?.role === "admin";
+
+  let isSameFamily = false;
+  if (cardAccess.family_id) {
+    const { data: myMembership } = await supabase
+      .from("family_members")
+      .select("family_id")
+      .eq("user_id", user.id)
+      .eq("family_id", cardAccess.family_id)
+      .single();
+    isSameFamily = !!myMembership;
+  }
+
+  if (
+    cardAccess.owner_id !== user.id &&
+    cardAccess.created_by !== user.id &&
+    !isAdmin &&
+    !isSameFamily
+  ) {
+    return { success: false, error: "Bu karti duzenleme yetkiniz yok" };
+  }
 
   const raw = parseFormData(formData, [
     "card_limit",
@@ -119,6 +160,40 @@ export async function deleteCreditCard(id: string): Promise<ActionResult> {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { success: false, error: "Oturum bulunamadi" };
+
+  const { data: cardAccess } = await supabase
+    .from("credit_cards")
+    .select("owner_id, created_by, family_id")
+    .eq("id", id)
+    .single();
+  if (!cardAccess) return { success: false, error: "Kart bulunamadi" };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+  const isAdmin = profile?.role === "admin";
+
+  let isSameFamily = false;
+  if (cardAccess.family_id) {
+    const { data: myMembership } = await supabase
+      .from("family_members")
+      .select("family_id")
+      .eq("user_id", user.id)
+      .eq("family_id", cardAccess.family_id)
+      .single();
+    isSameFamily = !!myMembership;
+  }
+
+  if (
+    cardAccess.owner_id !== user.id &&
+    cardAccess.created_by !== user.id &&
+    !isAdmin &&
+    !isSameFamily
+  ) {
+    return { success: false, error: "Bu karti silme yetkiniz yok" };
+  }
 
   const { error } = await supabase.from("credit_cards").delete().eq("id", id);
 

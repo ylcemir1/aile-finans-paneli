@@ -4,6 +4,34 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { ActionResult } from "@/types";
 
+function normalizeEmail(email: string) {
+  return email.trim().toLowerCase();
+}
+
+async function attachExistingDataToFamily(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  familyId: string
+) {
+  await Promise.all([
+    supabase
+      .from("bank_accounts")
+      .update({ family_id: familyId })
+      .eq("owner_id", userId)
+      .is("family_id", null),
+    supabase
+      .from("loans")
+      .update({ family_id: familyId })
+      .eq("payer_id", userId)
+      .is("family_id", null),
+    supabase
+      .from("credit_cards")
+      .update({ family_id: familyId })
+      .eq("owner_id", userId)
+      .is("family_id", null),
+  ]);
+}
+
 async function getAuthUser() {
   const supabase = await createClient();
   const {
@@ -70,11 +98,12 @@ export async function getMyFamily() {
 export async function getPendingInvitationsForUser() {
   try {
     const { supabase, user } = await getAuthUser();
+    const email = normalizeEmail(user.email ?? "");
 
     const { data: invitations } = await supabase
       .from("family_invitations")
       .select("*, families(name), inviter:profiles!family_invitations_invited_by_fkey(full_name)")
-      .eq("invited_email", user.email!)
+      .ilike("invited_email", email)
       .eq("status", "pending");
 
     return {
@@ -101,9 +130,9 @@ export async function getPendingInvitationsForUser() {
 
 export async function createFamily(name: string): Promise<ActionResult> {
   try {
-    const { supabase } = await getAuthUser();
+    const { supabase, user } = await getAuthUser();
 
-    const { error } = await supabase.rpc("create_family_with_admin", {
+    const { data: familyId, error } = await supabase.rpc("create_family_with_admin", {
       family_name: name,
     });
 
@@ -114,7 +143,15 @@ export async function createFamily(name: string): Promise<ActionResult> {
       return { success: false, error: `Aile olusturulamadi: ${error.message}` };
     }
 
+    if (familyId) {
+      await attachExistingDataToFamily(supabase, user.id, familyId);
+    }
+
     revalidatePath("/family");
+    revalidatePath("/bank-accounts");
+    revalidatePath("/loans");
+    revalidatePath("/credit-cards");
+    revalidatePath("/installments");
     return { success: true, data: undefined };
   } catch (e) {
     return {
@@ -127,6 +164,7 @@ export async function createFamily(name: string): Promise<ActionResult> {
 export async function inviteMember(email: string): Promise<ActionResult> {
   try {
     const { supabase, user } = await getAuthUser();
+    const normalizedEmail = normalizeEmail(email);
 
     const { data: membership } = await supabase
       .from("family_members")
@@ -142,7 +180,7 @@ export async function inviteMember(email: string): Promise<ActionResult> {
       return { success: false, error: "Sadece aile adminleri davet gonderebilir" };
     }
 
-    if (email === user.email) {
+    if (normalizedEmail === normalizeEmail(user.email ?? "")) {
       return { success: false, error: "Kendinizi davet edemezsiniz" };
     }
 
@@ -150,7 +188,7 @@ export async function inviteMember(email: string): Promise<ActionResult> {
       .from("family_invitations")
       .select("id")
       .eq("family_id", membership.family_id)
-      .eq("invited_email", email)
+      .eq("invited_email", normalizedEmail)
       .eq("status", "pending")
       .limit(1);
 
@@ -161,7 +199,7 @@ export async function inviteMember(email: string): Promise<ActionResult> {
     const { error } = await supabase.from("family_invitations").insert({
       family_id: membership.family_id,
       invited_by: user.id,
-      invited_email: email,
+      invited_email: normalizedEmail,
     });
 
     if (error) {
@@ -183,12 +221,13 @@ export async function acceptInvitation(
 ): Promise<ActionResult> {
   try {
     const { supabase, user } = await getAuthUser();
+    const email = normalizeEmail(user.email ?? "");
 
     const { data: invitation } = await supabase
       .from("family_invitations")
       .select("*")
       .eq("id", invitationId)
-      .eq("invited_email", user.email!)
+      .ilike("invited_email", email)
       .eq("status", "pending")
       .single();
 
@@ -226,7 +265,13 @@ export async function acceptInvitation(
       .update({ status: "accepted" })
       .eq("id", invitationId);
 
+    await attachExistingDataToFamily(supabase, user.id, invitation.family_id);
+
     revalidatePath("/family");
+    revalidatePath("/bank-accounts");
+    revalidatePath("/loans");
+    revalidatePath("/credit-cards");
+    revalidatePath("/installments");
     revalidatePath("/");
     return { success: true, data: undefined };
   } catch (e) {
@@ -242,12 +287,13 @@ export async function rejectInvitation(
 ): Promise<ActionResult> {
   try {
     const { supabase, user } = await getAuthUser();
+    const email = normalizeEmail(user.email ?? "");
 
     const { error } = await supabase
       .from("family_invitations")
       .update({ status: "rejected" })
       .eq("id", invitationId)
-      .eq("invited_email", user.email!);
+      .ilike("invited_email", email);
 
     if (error) {
       return { success: false, error: "Davet reddedilemedi" };

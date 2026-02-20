@@ -4,8 +4,15 @@ import { CreditCardCard } from "@/components/credit-cards/CreditCardCard";
 import { CreditCardForm } from "@/components/credit-cards/CreditCardForm";
 import { formatCurrency } from "@/lib/utils/currency";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ViewScopeToggle } from "@/components/ui/ViewScopeToggle";
+import { getUserFamilyId } from "@/lib/utils/family-scope";
 
-export default async function CreditCardsPage() {
+export default async function CreditCardsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ scope?: string }>;
+}) {
+  const params = await searchParams;
   const supabase = await createClient();
 
   const {
@@ -14,10 +21,22 @@ export default async function CreditCardsPage() {
 
   if (!user) redirect("/login");
 
-  const { data: cards } = await supabase
+  const familyId = await getUserFamilyId(supabase, user.id);
+  const scope = params.scope ?? "personal";
+  const isFamily = scope === "family" && !!familyId;
+
+  let cardsQuery = supabase
     .from("credit_cards")
     .select("*, credit_card_installments(*)")
     .order("created_at", { ascending: false });
+
+  if (isFamily) {
+    cardsQuery = cardsQuery.eq("family_id", familyId);
+  } else {
+    cardsQuery = cardsQuery.eq("owner_id", user.id);
+  }
+
+  const { data: cards } = await cardsQuery;
   const activeCards = (cards ?? []).filter((c) => c.status !== "closed");
 
   const totalDebt = activeCards.reduce(
@@ -34,9 +53,15 @@ export default async function CreditCardsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-slate-900">Kredi Kartlari</h1>
+        <div>
+          <h1 className="text-xl font-bold text-slate-900">Kredi Kartlari</h1>
+          <p className="text-xs text-slate-500 mt-0.5">
+            {isFamily ? "Aile gorunumu" : "Kisisel gorunum"}
+          </p>
+        </div>
         <CreditCardForm />
       </div>
+      <ViewScopeToggle hasFamily={!!familyId} />
 
       {/* Summary stats */}
       <div className="flex flex-wrap gap-4">

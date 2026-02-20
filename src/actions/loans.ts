@@ -46,6 +46,12 @@ export async function createLoan(
     : (parsed.data.paid_amount ?? 0);
   const remainingBalance = parsed.data.total_amount - paidAmount;
 
+  const { data: membership } = await supabase
+    .from("family_members")
+    .select("family_id")
+    .eq("user_id", user.id)
+    .single();
+
   const { data: loan, error: loanError } = await supabase
     .from("loans")
     .insert({
@@ -66,6 +72,7 @@ export async function createLoan(
       statement_day: parsed.data.statement_day ?? null,
       due_day: parsed.data.due_day ?? null,
       notes: parsed.data.notes ?? "",
+      family_id: membership?.family_id ?? null,
     })
     .select("id")
     .single();
@@ -119,7 +126,7 @@ export async function updateLoan(
   // Ownership check
   const { data: existingLoan } = await supabase
     .from("loans")
-    .select("created_by, paid_amount, total_amount")
+    .select("created_by, paid_amount, total_amount, family_id")
     .eq("id", id)
     .single();
 
@@ -132,7 +139,18 @@ export async function updateLoan(
     .single();
 
   const isAdmin = profile?.role === "admin";
-  if (existingLoan.created_by !== user.id && !isAdmin) {
+  let isSameFamily = false;
+  if (existingLoan.family_id) {
+    const { data: myMembership } = await supabase
+      .from("family_members")
+      .select("family_id")
+      .eq("user_id", user.id)
+      .eq("family_id", existingLoan.family_id)
+      .single();
+    isSameFamily = !!myMembership;
+  }
+
+  if (existingLoan.created_by !== user.id && !isAdmin && !isSameFamily) {
     return { success: false, error: "Bu krediyi duzenleme yetkiniz yok" };
   }
 
@@ -240,7 +258,7 @@ export async function closeLoan(id: string): Promise<ActionResult> {
   // Ownership check
   const { data: loan } = await supabase
     .from("loans")
-    .select("created_by")
+    .select("created_by, family_id")
     .eq("id", id)
     .single();
 
@@ -253,7 +271,18 @@ export async function closeLoan(id: string): Promise<ActionResult> {
     .single();
 
   const isAdmin = profile?.role === "admin";
-  if (loan.created_by !== user.id && !isAdmin) {
+  let isSameFamily = false;
+  if (loan.family_id) {
+    const { data: myMembership } = await supabase
+      .from("family_members")
+      .select("family_id")
+      .eq("user_id", user.id)
+      .eq("family_id", loan.family_id)
+      .single();
+    isSameFamily = !!myMembership;
+  }
+
+  if (loan.created_by !== user.id && !isAdmin && !isSameFamily) {
     return { success: false, error: "Bu krediyi kapatma yetkiniz yok" };
   }
 
@@ -284,7 +313,7 @@ export async function deleteLoan(id: string): Promise<ActionResult> {
   // Ownership check
   const { data: loan } = await supabase
     .from("loans")
-    .select("created_by")
+    .select("created_by, family_id")
     .eq("id", id)
     .single();
 
@@ -297,7 +326,18 @@ export async function deleteLoan(id: string): Promise<ActionResult> {
     .single();
 
   const isAdmin = profile?.role === "admin";
-  if (loan.created_by !== user.id && !isAdmin) {
+  let isSameFamily = false;
+  if (loan.family_id) {
+    const { data: myMembership } = await supabase
+      .from("family_members")
+      .select("family_id")
+      .eq("user_id", user.id)
+      .eq("family_id", loan.family_id)
+      .single();
+    isSameFamily = !!myMembership;
+  }
+
+  if (loan.created_by !== user.id && !isAdmin && !isSameFamily) {
     return { success: false, error: "Bu krediyi silme yetkiniz yok" };
   }
 

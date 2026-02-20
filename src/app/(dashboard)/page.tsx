@@ -9,6 +9,7 @@ import { formatCurrency } from "@/lib/utils/currency";
 import { formatDate, isWithinDays, daysUntil } from "@/lib/utils/date";
 import { getUserFamilyId } from "@/lib/utils/family-scope";
 import { LOAN_TYPES } from "@/types";
+import Link from "next/link";
 
 export default async function DashboardPage({
   searchParams,
@@ -24,6 +25,12 @@ export default async function DashboardPage({
   const userId = user?.id;
 
   const familyId = userId ? await getUserFamilyId(supabase, userId) : null;
+  const normalizedEmail = (user?.email ?? "").trim().toLowerCase();
+  const { count: pendingInviteCount } = await supabase
+    .from("family_invitations")
+    .select("id", { count: "exact", head: true })
+    .ilike("invited_email", normalizedEmail)
+    .eq("status", "pending");
   const scope = params.scope ?? "personal";
   const isFamily = scope === "family" && !!familyId;
 
@@ -161,6 +168,27 @@ export default async function DashboardPage({
 
   return (
     <div className="space-y-6">
+      {(pendingInviteCount ?? 0) > 0 && (
+        <Link
+          href="/family"
+          className="block bg-amber-50 border border-amber-200 rounded-xl p-4 hover:bg-amber-100 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <span className="material-symbols-outlined text-amber-600">
+              mail
+            </span>
+            <div>
+              <p className="text-sm font-bold text-amber-800">
+                Bekleyen aile davetiniz var
+              </p>
+              <p className="text-xs text-amber-700">
+                {pendingInviteCount} daveti gormek ve kabul etmek icin Ailem sayfasina gidin.
+              </p>
+            </div>
+          </div>
+        </Link>
+      )}
+
       {/* Scope toggle */}
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-slate-900">

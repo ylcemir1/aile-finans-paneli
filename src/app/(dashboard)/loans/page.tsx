@@ -5,8 +5,15 @@ import { LoanFormModal } from "@/components/loans/LoanFormModal";
 import { InstallmentItem } from "@/components/installments/InstallmentItem";
 import { formatCurrency } from "@/lib/utils/currency";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ViewScopeToggle } from "@/components/ui/ViewScopeToggle";
+import { getUserFamilyId } from "@/lib/utils/family-scope";
 
-export default async function LoansPage() {
+export default async function LoansPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ scope?: string }>;
+}) {
+  const params = await searchParams;
   const supabase = await createClient();
 
   const {
@@ -15,6 +22,35 @@ export default async function LoansPage() {
 
   if (!user) redirect("/login");
 
+  const familyId = await getUserFamilyId(supabase, user.id);
+  const scope = params.scope ?? "personal";
+  const isFamily = scope === "family" && !!familyId;
+
+  let loansQuery = supabase
+    .from("loans")
+    .select(
+      "*, payer:profiles!payer_id(full_name), installments(id, is_paid)"
+    )
+    .order("created_at", { ascending: false });
+
+  const unpaidInstallmentsQuery = supabase
+    .from("installments")
+    .select("*, loan:loans(id, bank_name, loan_type, payer_id, family_id)")
+    .eq("is_paid", false)
+    .order("due_date", { ascending: true });
+
+  const paidInstallmentsQuery = supabase
+    .from("installments")
+    .select("*, loan:loans(id, bank_name, loan_type, payer_id, family_id)")
+    .eq("is_paid", true)
+    .order("due_date", { ascending: false });
+
+  if (isFamily) {
+    loansQuery = loansQuery.eq("family_id", familyId);
+  } else {
+    loansQuery = loansQuery.eq("payer_id", user.id);
+  }
+
   const [
     { data: loans },
     { data: profiles },
@@ -22,36 +58,35 @@ export default async function LoansPage() {
     { data: unpaidInstallments },
     { data: allPaidInstallments },
   ] = await Promise.all([
-    supabase
-      .from("loans")
-      .select(
-        "*, payer:profiles!payer_id(full_name), installments(id, is_paid)"
-      )
-      .order("created_at", { ascending: false }),
+    loansQuery,
     supabase.from("profiles").select("id, full_name"),
     supabase
       .from("profiles")
       .select("role")
       .eq("id", user.id)
       .single(),
-    supabase
-      .from("installments")
-      .select("*, loan:loans(id, bank_name, loan_type)")
-      .eq("is_paid", false)
-      .order("due_date", { ascending: true }),
-    supabase
-      .from("installments")
-      .select("*, loan:loans(id, bank_name, loan_type)")
-      .eq("is_paid", true)
-      .order("due_date", { ascending: false }),
+    unpaidInstallmentsQuery,
+    paidInstallmentsQuery,
   ]);
 
   const isAdmin = currentProfile?.role === "admin";
   const activeLoans = (loans ?? []).filter((l) => l.status !== "closed");
 
+  const scopedUnpaidInstallments = (unpaidInstallments ?? []).filter((inst) => {
+    if (!inst.loan) return false;
+    if (isFamily) return inst.loan.family_id === familyId;
+    return !inst.loan.family_id && inst.loan.payer_id === user.id;
+  });
+
+  const scopedPaidInstallments = (allPaidInstallments ?? []).filter((inst) => {
+    if (!inst.loan) return false;
+    if (isFamily) return inst.loan.family_id === familyId;
+    return !inst.loan.family_id && inst.loan.payer_id === user.id;
+  });
+
   // Smart display: all unpaid + only the last paid per loan
-  const allUnpaid = unpaidInstallments ?? [];
-  const paidList = allPaidInstallments ?? [];
+  const allUnpaid = scopedUnpaidInstallments;
+  const paidList = scopedPaidInstallments;
   const lastPaidPerLoan = new Map<string, (typeof paidList)[number]>();
   for (const inst of paidList) {
     if (!lastPaidPerLoan.has(inst.loan_id)) {
@@ -82,15 +117,21 @@ export default async function LoansPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-slate-900">
-          Krediler ve Taksitler
-        </h1>
+        <div>
+          <h1 className="text-xl font-bold text-slate-900">
+            Krediler ve Taksitler
+          </h1>
+          <p className="text-xs text-slate-500 mt-0.5">
+            {isFamily ? "Aile gorunumu" : "Kisisel gorunum"}
+          </p>
+        </div>
         <LoanFormModal
           profiles={profiles ?? []}
           currentUserId={user.id}
           isAdmin={isAdmin}
         />
       </div>
+      <ViewScopeToggle hasFamily={!!familyId} />
 
       {/* Summary stats */}
       <div className="flex flex-wrap gap-4">

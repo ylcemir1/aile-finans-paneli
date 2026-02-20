@@ -5,11 +5,13 @@ import { BankAccountCard } from "@/components/bank-accounts/BankAccountCard";
 import { BankAccountForm } from "@/components/bank-accounts/BankAccountForm";
 import { SearchBar } from "@/components/bank-accounts/SearchBar";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ViewScopeToggle } from "@/components/ui/ViewScopeToggle";
+import { getUserFamilyId } from "@/lib/utils/family-scope";
 
 export default async function BankAccountsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; scope?: string }>;
 }) {
   const params = await searchParams;
   const query = params.q?.toLowerCase() ?? "";
@@ -21,12 +23,24 @@ export default async function BankAccountsPage({
 
   if (!user) redirect("/login");
 
+  const familyId = await getUserFamilyId(supabase, user.id);
+  const scope = params.scope ?? "personal";
+  const isFamily = scope === "family" && !!familyId;
+
+  let accountsQuery = supabase
+    .from("bank_accounts")
+    .select("*, owner:profiles(full_name)")
+    .order("updated_at", { ascending: false });
+
+  if (isFamily) {
+    accountsQuery = accountsQuery.eq("family_id", familyId);
+  } else {
+    accountsQuery = accountsQuery.eq("owner_id", user.id);
+  }
+
   const [{ data: accounts }, { data: profiles }, { data: currentProfile }] =
     await Promise.all([
-      supabase
-        .from("bank_accounts")
-        .select("*, owner:profiles(full_name)")
-        .order("updated_at", { ascending: false }),
+      accountsQuery,
       supabase.from("profiles").select("id, full_name"),
       supabase
         .from("profiles")
@@ -70,13 +84,19 @@ export default async function BankAccountsPage({
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-slate-900">Banka Hesaplari</h1>
+        <div>
+          <h1 className="text-xl font-bold text-slate-900">Banka Hesaplari</h1>
+          <p className="text-xs text-slate-500 mt-0.5">
+            {isFamily ? "Aile gorunumu" : "Kisisel gorunum"}
+          </p>
+        </div>
         <BankAccountForm
           profiles={profiles ?? []}
           currentUserId={user.id}
           isAdmin={isAdmin}
         />
       </div>
+      <ViewScopeToggle hasFamily={!!familyId} />
 
       {/* Summary card */}
       <BalanceSummaryCard
