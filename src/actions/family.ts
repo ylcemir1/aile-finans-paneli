@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { ActionResult } from "@/types";
 
 function normalizeEmail(email: string) {
@@ -97,13 +98,14 @@ export async function getMyFamily() {
 
 export async function getPendingInvitationsForUser() {
   try {
-    const { supabase, user } = await getAuthUser();
+    const { user } = await getAuthUser();
+    const admin = createAdminClient();
     const email = normalizeEmail(user.email ?? "");
 
-    const { data: invitations } = await supabase
+    const { data: invitations } = await admin
       .from("family_invitations")
       .select("*, families(name), inviter:profiles!family_invitations_invited_by_fkey(full_name)")
-      .ilike("invited_email", email)
+      .eq("invited_email", email)
       .eq("status", "pending");
 
     return {
@@ -221,13 +223,14 @@ export async function acceptInvitation(
 ): Promise<ActionResult> {
   try {
     const { supabase, user } = await getAuthUser();
+    const admin = createAdminClient();
     const email = normalizeEmail(user.email ?? "");
 
-    const { data: invitation } = await supabase
+    const { data: invitation } = await admin
       .from("family_invitations")
       .select("*")
       .eq("id", invitationId)
-      .ilike("invited_email", email)
+      .eq("invited_email", email)
       .eq("status", "pending")
       .single();
 
@@ -248,7 +251,7 @@ export async function acceptInvitation(
       };
     }
 
-    const { error: memberError } = await supabase
+    const { error: memberError } = await admin
       .from("family_members")
       .insert({
         family_id: invitation.family_id,
@@ -260,7 +263,7 @@ export async function acceptInvitation(
       return { success: false, error: "Aileye katilinamadi" };
     }
 
-    await supabase
+    await admin
       .from("family_invitations")
       .update({ status: "accepted" })
       .eq("id", invitationId);
@@ -286,14 +289,15 @@ export async function rejectInvitation(
   invitationId: string
 ): Promise<ActionResult> {
   try {
-    const { supabase, user } = await getAuthUser();
+    const { user } = await getAuthUser();
+    const admin = createAdminClient();
     const email = normalizeEmail(user.email ?? "");
 
-    const { error } = await supabase
+    const { error } = await admin
       .from("family_invitations")
       .update({ status: "rejected" })
       .eq("id", invitationId)
-      .ilike("invited_email", email);
+      .eq("invited_email", email);
 
     if (error) {
       return { success: false, error: "Davet reddedilemedi" };

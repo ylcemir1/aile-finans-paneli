@@ -8,6 +8,7 @@ import { ViewScopeToggle } from "@/components/ui/ViewScopeToggle";
 import { formatCurrency } from "@/lib/utils/currency";
 import { formatDate, isWithinDays, daysUntil } from "@/lib/utils/date";
 import { getUserFamilyId } from "@/lib/utils/family-scope";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { LOAN_TYPES } from "@/types";
 import Link from "next/link";
 
@@ -26,10 +27,11 @@ export default async function DashboardPage({
 
   const familyId = userId ? await getUserFamilyId(supabase, userId) : null;
   const normalizedEmail = (user?.email ?? "").trim().toLowerCase();
-  const { count: pendingInviteCount } = await supabase
+  const admin = createAdminClient();
+  const { count: pendingInviteCount } = await admin
     .from("family_invitations")
     .select("id", { count: "exact", head: true })
-    .ilike("invited_email", normalizedEmail)
+    .eq("invited_email", normalizedEmail)
     .eq("status", "pending");
   const scope = params.scope ?? "personal";
   const isFamily = scope === "family" && !!familyId;
