@@ -101,34 +101,17 @@ export async function getPendingInvitationsForUser() {
 
 export async function createFamily(name: string): Promise<ActionResult> {
   try {
-    const { supabase, user } = await getAuthUser();
+    const { supabase } = await getAuthUser();
 
-    const { data: existing } = await supabase
-      .from("family_members")
-      .select("id")
-      .eq("user_id", user.id)
-      .limit(1);
+    const { error } = await supabase.rpc("create_family_with_admin", {
+      family_name: name,
+    });
 
-    if (existing && existing.length > 0) {
-      return { success: false, error: "Zaten bir aileye uyesiniz" };
-    }
-
-    const { data: family, error: familyError } = await supabase
-      .from("families")
-      .insert({ name, created_by: user.id })
-      .select("id")
-      .single();
-
-    if (familyError || !family) {
-      return { success: false, error: "Aile olusturulamadi" };
-    }
-
-    const { error: memberError } = await supabase
-      .from("family_members")
-      .insert({ family_id: family.id, user_id: user.id, role: "admin" });
-
-    if (memberError) {
-      return { success: false, error: "Aile uyesi eklenemedi" };
+    if (error) {
+      if (error.message.includes("Already a member")) {
+        return { success: false, error: "Zaten bir aileye uyesiniz" };
+      }
+      return { success: false, error: `Aile olusturulamadi: ${error.message}` };
     }
 
     revalidatePath("/family");
