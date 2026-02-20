@@ -439,6 +439,20 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      create_family_with_admin: {
+        Args: {
+          family_name: string;
+        };
+        Returns: string;
+      };
+      get_my_admin_family_ids: {
+        Args: Record<PropertyKey, never>;
+        Returns: string[];
+      };
+      get_my_family_ids: {
+        Args: Record<PropertyKey, never>;
+        Returns: string[];
+      };
       is_admin: {
         Args: Record<PropertyKey, never>;
         Returns: boolean;
