@@ -26,7 +26,8 @@ export async function getUserFamilyMembership(
   supabase: Awaited<ReturnType<typeof createClient>>,
   userId: string
 ) {
-  const { data } = await supabase
+  // Once izin kolonlari ile dene
+  const { data, error } = await supabase
     .from("family_members")
     .select(
       "family_id, role, can_view_finance, can_create_finance, can_edit_finance, can_delete_finance, can_manage_members, can_manage_invitations, can_assign_permissions"
@@ -34,7 +35,29 @@ export async function getUserFamilyMembership(
     .eq("user_id", userId)
     .single();
 
-  return data;
+  if (!error && data) return data;
+
+  // Fallback: izin kolonlari yoksa sadece temel bilgiyi al
+  const { data: basic } = await supabase
+    .from("family_members")
+    .select("family_id, role")
+    .eq("user_id", userId)
+    .single();
+
+  if (!basic) return null;
+
+  // Izinleri role'den turet
+  const isAdmin = basic.role === "admin";
+  return {
+    ...basic,
+    can_view_finance: isAdmin,
+    can_create_finance: isAdmin,
+    can_edit_finance: isAdmin,
+    can_delete_finance: isAdmin,
+    can_manage_members: isAdmin,
+    can_manage_invitations: isAdmin,
+    can_assign_permissions: isAdmin,
+  };
 }
 
 export async function hasFamilyPermission(

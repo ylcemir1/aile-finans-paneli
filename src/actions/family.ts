@@ -59,11 +59,13 @@ async function getAuthUser() {
 
 export async function getMyFamily() {
   try {
-    const { supabase, user } = await getAuthUser();
+    const { user } = await getAuthUser();
     const admin = createAdminClient();
 
-    // Admin client bypasses RLS - ensures user always sees their family when they're a member
-    const { data: membership } = await admin
+    // Once basit sorgu dene (izin kolonlari olmayabilir)
+    let membership: Record<string, unknown> | null = null;
+
+    const { data: fullMembership, error: fullError } = await admin
       .from("family_members")
       .select(
         "family_id, role, can_view_finance, can_create_finance, can_edit_finance, can_delete_finance, can_manage_members, can_manage_invitations, can_assign_permissions, families(id, name, created_by, created_at)"
@@ -71,57 +73,98 @@ export async function getMyFamily() {
       .eq("user_id", user.id)
       .single();
 
+    if (!fullError && fullMembership) {
+      membership = fullMembership;
+    } else {
+      // Fallback: izin kolonlari yoksa basit sorgu
+      const { data: basicMembership } = await admin
+        .from("family_members")
+        .select("family_id, role, families(id, name, created_by, created_at)")
+        .eq("user_id", user.id)
+        .single();
+      membership = basicMembership;
+    }
+
     if (!membership || !membership.families) {
       return { success: true as const, data: null };
     }
 
-    const family = Array.isArray(membership.families)
-      ? membership.families[0]
-      : membership.families;
+    const familyRaw = membership.families as Record<string, unknown> | Record<string, unknown>[];
+    const family = Array.isArray(familyRaw) ? familyRaw[0] : familyRaw;
+    const isAdmin = membership.role === "admin";
 
-    const { data: members } = await admin
+    // Izin degerlerini belirle (kolon yoksa role'den turet)
+    const derivePermission = (key: string): boolean => {
+      if (key in membership!) return !!(membership as Record<string, unknown>)[key];
+      return isAdmin; // Admin ise tum izinler true, degil ise false
+    };
+
+    // Uyeler
+    let membersRaw: Record<string, unknown>[] = [];
+    const { data: fullMembers, error: membersError } = await admin
       .from("family_members")
       .select(
         "id, user_id, role, joined_at, can_view_finance, can_create_finance, can_edit_finance, can_delete_finance, can_manage_members, can_manage_invitations, can_assign_permissions, profiles:profiles(id, full_name)"
       )
-      .eq("family_id", family.id);
+      .eq("family_id", (family as Record<string, unknown>).id as string);
+
+    if (!membersError && fullMembers) {
+      membersRaw = fullMembers;
+    } else {
+      const { data: basicMembers } = await admin
+        .from("family_members")
+        .select("id, user_id, role, joined_at, profiles:profiles(id, full_name)")
+        .eq("family_id", (family as Record<string, unknown>).id as string);
+      membersRaw = basicMembers ?? [];
+    }
 
     const { data: invitations } = await admin
       .from("family_invitations")
       .select("*")
-      .eq("family_id", family.id);
+      .eq("family_id", (family as Record<string, unknown>).id as string);
 
     return {
       success: true as const,
       data: {
-        family,
-        myRole: membership.role as "admin" | "member",
+        family: family as { id: string; name: string; created_by: string; created_at: string },
+        myRole: (membership.role as "admin" | "member"),
         myPermissions: {
-          can_view_finance: !!membership.can_view_finance,
-          can_create_finance: !!membership.can_create_finance,
-          can_edit_finance: !!membership.can_edit_finance,
-          can_delete_finance: !!membership.can_delete_finance,
-          can_manage_members: !!membership.can_manage_members,
-          can_manage_invitations: !!membership.can_manage_invitations,
-          can_assign_permissions: !!membership.can_assign_permissions,
+          can_view_finance: derivePermission("can_view_finance"),
+          can_create_finance: derivePermission("can_create_finance"),
+          can_edit_finance: derivePermission("can_edit_finance"),
+          can_delete_finance: derivePermission("can_delete_finance"),
+          can_manage_members: derivePermission("can_manage_members"),
+          can_manage_invitations: derivePermission("can_manage_invitations"),
+          can_assign_permissions: derivePermission("can_assign_permissions"),
         },
-        members: (members ?? []).map((m) => ({
-          id: m.id,
-          user_id: m.user_id,
-          role: m.role as "admin" | "member",
-          joined_at: m.joined_at,
-          can_view_finance: !!m.can_view_finance,
-          can_create_finance: !!m.can_create_finance,
-          can_edit_finance: !!m.can_edit_finance,
-          can_delete_finance: !!m.can_delete_finance,
-          can_manage_members: !!m.can_manage_members,
-          can_manage_invitations: !!m.can_manage_invitations,
-          can_assign_permissions: !!m.can_assign_permissions,
-          full_name: Array.isArray(m.profiles)
-            ? m.profiles[0]?.full_name ?? ""
-            : m.profiles?.full_name ?? "",
-        })),
-        invitations: invitations ?? [],
+        members: membersRaw.map((m) => {
+          const mIsAdmin = m.role === "admin";
+          const deriveM = (key: string) => (key in m ? !!(m[key]) : mIsAdmin);
+          const profiles = m.profiles as Record<string, unknown> | Record<string, unknown>[] | null;
+          return {
+            id: m.id as string,
+            user_id: m.user_id as string,
+            role: m.role as "admin" | "member",
+            joined_at: m.joined_at as string,
+            can_view_finance: deriveM("can_view_finance"),
+            can_create_finance: deriveM("can_create_finance"),
+            can_edit_finance: deriveM("can_edit_finance"),
+            can_delete_finance: deriveM("can_delete_finance"),
+            can_manage_members: deriveM("can_manage_members"),
+            can_manage_invitations: deriveM("can_manage_invitations"),
+            can_assign_permissions: deriveM("can_assign_permissions"),
+            full_name: Array.isArray(profiles)
+              ? (profiles[0]?.full_name as string) ?? ""
+              : (profiles?.full_name as string) ?? "",
+          };
+        }),
+        invitations: (invitations ?? []) as {
+          id: string;
+          invited_email: string;
+          status: "pending" | "accepted" | "rejected" | "canceled" | "expired";
+          created_at: string;
+          expires_at: string | null;
+        }[],
       },
     };
   } catch (e) {
